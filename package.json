@@ -1,0 +1,14 @@
+{
+  "name": "dmart-supermarket",
+  "version": "1.0.0",
+  "description": "DMART Supermarket - Frontend & Backend",
+  "scripts": {
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd Backend && npm start",
+    "frontend": "cd Frontend && npm run dev",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

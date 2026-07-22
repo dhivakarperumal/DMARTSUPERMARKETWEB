@@ -1,0 +1,45 @@
+# Node modules
+node_modules/
+Frontend/node_modules/
+Backend/node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+
+# Build / output
+dist/
+build/
+coverage/
+.vite/
+
+# Frontend build
+Frontend/dist/
+Frontend/.cache/
+
+# Backend build
+Backend/dist/
+Backend/.cache/
+
+# Environment files
+.env
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE/editor
+.vscode/
+.idea/
+
+# Misc
+uploads/
+*.sqlite
