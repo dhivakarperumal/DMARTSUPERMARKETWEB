@@ -159,12 +159,10 @@ const ProductDetails = () => {
   const getDisplayImages = (data, variant) => {
     const candidates = [
       variant?.images,
-      data?.thumbnail_image,
       data?.product_images,
       data?.images,
       data?.image,
       data?.image_url,
-      data?.thumbnail,
       variant?.image,
       variant?.image_url,
     ];

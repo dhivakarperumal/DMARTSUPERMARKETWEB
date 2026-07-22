@@ -131,10 +131,6 @@ const ProductDetail = () => {
         const displayImgs = parsedImgs.map(processUrl).filter(Boolean);
         if (displayImgs.length > 0) return displayImgs;
 
-        if (product.thumbnail_image) {
-            const u = processUrl(product.thumbnail_image);
-            if (u) return [u];
-        }
         return [];
     };
     const displayImages = getDisplayImages();

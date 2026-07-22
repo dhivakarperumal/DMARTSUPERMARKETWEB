@@ -84,12 +84,10 @@ const ProductCard = ({ product }) => {
   };
 
   const imageCandidates = [
-    product?.thumbnail_image,
     product?.product_images,
     product?.images,
     product?.image,
     product?.image_url,
-    product?.thumbnail,
     product?.variants?.[0]?.images,
   ];
 

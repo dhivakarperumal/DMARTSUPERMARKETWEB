@@ -80,7 +80,7 @@ export default function CartPage() {
                 ) : (
                   cart.map((item, index) => {
                     const name = item.name || item.product_name || item.productName || "Product";
-                    const image = item.image || item.product_image || item.thumbnail_image || item.product_images?.[0] || "/placeholder.png";
+                    const image = item.image || item.product_image || (Array.isArray(item.product_images) && item.product_images[0]) || (typeof item.product_images === 'string' && JSON.parse(item.product_images)?.[0]) || "/placeholder.png";
                     const price = item.price;
                     const mrp = item.mrp;
 

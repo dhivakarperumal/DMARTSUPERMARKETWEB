@@ -324,11 +324,7 @@ const CreateBilling = () => {
     const getProductImage = (product) => {
         try {
             let imgUrl = null;
-            
-            if (product.thumbnail_image) {
-                imgUrl = product.thumbnail_image;
-            }
-            
+            // Try product_images array
             if (!imgUrl && product.product_images) {
                 const images = typeof product.product_images === 'string' ? JSON.parse(product.product_images) : (product.product_images || []);
                 if (Array.isArray(images) && images.length > 0) imgUrl = images[0];

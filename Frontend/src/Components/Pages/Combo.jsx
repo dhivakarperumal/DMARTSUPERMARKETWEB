@@ -41,7 +41,6 @@ const normalizeImages = (value) => {
 
 const getImage = (product) => {
   const candidates = [
-    product.thumbnail_image,
     product.product_images,
     product.images,
     product.image,

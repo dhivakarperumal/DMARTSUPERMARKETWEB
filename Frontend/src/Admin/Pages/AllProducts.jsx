@@ -219,12 +219,7 @@ const AllProducts = () => {
                 return `${backendUrl}${cleanPath}`;
             };
 
-            // 1. Try thumbnail first
-            if (product.thumbnail_image) {
-                imgUrl = product.thumbnail_image;
-            }
-
-            // 2. Try product_images array
+            // Try product_images array
             if (!imgUrl && product.product_images) {
                 let imgs = product.product_images;
                 if (typeof imgs === 'string') {

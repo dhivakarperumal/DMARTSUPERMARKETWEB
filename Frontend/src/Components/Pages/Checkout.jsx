@@ -259,8 +259,6 @@ const Checkout = () => {
           if (vImages.length > 0) return vImages[0];
           const pImages = normalizeImageList(buyNowProduct?.images);
           if (pImages.length > 0) return pImages[0];
-          const tImage = normalizeImageList(buyNowProduct?.thumbnail_image);
-          if (tImage.length > 0) return tImage[0];
           const pProdImages = normalizeImageList(buyNowProduct?.product_images);
           if (pProdImages.length > 0) return pProdImages[0];
           return "/placeholder.png";

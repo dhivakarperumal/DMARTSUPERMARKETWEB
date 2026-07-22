@@ -491,8 +491,8 @@ const Navbar = () => {
                           const image =
                             item.image ||
                             item.product_image ||
-                            item.thumbnail_image ||
-                            item.product_images?.[0] ||
+                            (Array.isArray(item.product_images) && item.product_images[0]) ||
+                            (typeof item.product_images === 'string' && JSON.parse(item.product_images)?.[0]) ||
                             "/placeholder.png";
 
                           const price =
@@ -747,8 +747,8 @@ const Navbar = () => {
                         const image =
                           item.image ||
                           item.product_image ||
-                          item.thumbnail_image ||
-                          item.product_images?.[0] ||
+                          (Array.isArray(item.product_images) && item.product_images[0]) ||
+                          (typeof item.product_images === 'string' && JSON.parse(item.product_images)?.[0]) ||
                           "/placeholder.png";
 
                         const price =

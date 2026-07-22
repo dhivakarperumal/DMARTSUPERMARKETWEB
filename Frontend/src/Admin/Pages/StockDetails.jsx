@@ -128,10 +128,7 @@ const StockDetails = () => {
                 const cleanPath = url.startsWith('/') ? url : `/${url}`;
                 return `${backendUrl}${cleanPath}`;
             };
-            if (product.thumbnail_image) {
-                imgUrl = product.thumbnail_image;
-            }
-            if (!imgUrl && product.product_images) {
+            if (product.product_images) {
                 const imgs = typeof product.product_images === 'string' ? JSON.parse(product.product_images) : product.product_images;
                 if (Array.isArray(imgs) && imgs.length > 0) imgUrl = imgs[0];
             }

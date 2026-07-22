@@ -118,7 +118,6 @@ const QuickViewModal = ({ product, onClose }) => {
 
   const imageCandidates = [
     selectedVariant?.images,
-    product?.thumbnail_image,
     product?.product_images,
     product?.images,
     product?.image,
