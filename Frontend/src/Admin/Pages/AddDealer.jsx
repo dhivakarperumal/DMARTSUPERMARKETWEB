@@ -6,7 +6,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast, Toaster } from "react-hot-toast";
 import api from "../../api";
-import imageCompression from "browser-image-compression";
+import { compressAndUpload } from "../../utils/uploadService";
 
 // FormSection Component - Moved outside to prevent re-definition on every render
 const FormSection = ({ title, children }) => (
@@ -134,20 +134,14 @@ const AddDealer = () => {
         const file = e.target.files[0];
         if (!file) return;
 
-        const options = {
-            maxSizeMB: 0.5,
-            maxWidthOrHeight: 800,
-            useWebWorker: true,
-        };
-
         try {
-            const compressedFile = await imageCompression(file, options);
-            const reader = new FileReader();
-            reader.readAsDataURL(compressedFile);
-            reader.onloadend = () => {
-                setFormData(prev => ({ ...prev, profileImage: reader.result }));
-                toast.success("Image uploaded and compressed!");
-            };
+            const urls = await compressAndUpload([file], "dealers", {
+                maxSizeMB: 0.5,
+                maxWidthOrHeight: 800,
+            });
+            if (urls.length > 0) {
+                setFormData(prev => ({ ...prev, profileImage: urls[0] }));
+            }
         } catch (error) {
             console.error("Compression error:", error);
             toast.error("Failed to process image");

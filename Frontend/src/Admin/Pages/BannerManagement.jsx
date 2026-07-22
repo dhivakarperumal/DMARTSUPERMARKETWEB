@@ -13,6 +13,7 @@ import {
     FiFileText
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
+import { compressAndUpload } from "../../utils/uploadService";
 
 const BannerManagement = () => {
     const [banners, setBanners] = useState([]);
@@ -80,44 +81,26 @@ const BannerManagement = () => {
         if (isMobile) setMobileUploading(true);
         else setUploading(true);
 
-        // Compress image using canvas before storing as base64
-        const compressImage = (file, maxWidth = 1200, quality = 0.75) => {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement("canvas");
-                        let width = img.width;
-                        let height = img.height;
-                        if (width > maxWidth) {
-                            height = Math.round((height * maxWidth) / width);
-                            width = maxWidth;
-                        }
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext("2d");
-                        ctx.drawImage(img, 0, 0, width, height);
-                        resolve(canvas.toDataURL("image/jpeg", quality));
-                    };
-                    img.src = reader.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        };
-
         try {
-            const compressed = await compressImage(file, isMobile ? 800 : 1400, 0.75);
-            if (isMobile) {
-                setCurrentBanner(prev => ({ ...prev, mobile_image: compressed }));
-                setMobileUploading(false);
-            } else {
-                setCurrentBanner(prev => ({ ...prev, image: compressed }));
-                setUploading(false);
+            const urls = await compressAndUpload([file], "banners", {
+                maxSizeMB: 0.5,
+                maxWidthOrHeight: isMobile ? 800 : 1400,
+                fileType: "image/jpeg",
+                initialQuality: 0.75,
+            });
+
+            if (urls.length > 0) {
+                if (isMobile) {
+                    setCurrentBanner(prev => ({ ...prev, mobile_image: urls[0] }));
+                } else {
+                    setCurrentBanner(prev => ({ ...prev, image: urls[0] }));
+                }
+                toast.success(`${isMobile ? 'Mobile' : 'Desktop'} image ready!`);
             }
-            toast.success(`${isMobile ? 'Mobile' : 'Desktop'} image ready!`);
         } catch (err) {
             toast.error("Failed to process image.");
+            console.error(err);
+        } finally {
             if (isMobile) setMobileUploading(false);
             else setUploading(false);
         }

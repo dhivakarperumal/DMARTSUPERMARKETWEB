@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import imageCompression from "browser-image-compression";
+import { compressAndUpload } from "../../utils/uploadService";
 import { FaArrowLeft } from "react-icons/fa";
 import {
   User,
@@ -234,17 +235,14 @@ const AddEditStaff = () => {
       const isDoc = file.type.includes('document') || file.type === 'application/msword' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
       if (isImage) {
-        // Compress images to ~600KB. 
-        // Note: DB columns MUST be MEDIUMTEXT or LONGTEXT to handle this correctly.
-        const compressed = await imageCompression(file, {
+        const urls = await compressAndUpload([file], "staff", {
           maxSizeMB: 0.6,
           maxWidthOrHeight: 1024,
-          useWebWorker: true,
         });
-
-        const base64 = await imageCompression.getDataUrlFromFile(compressed);
-        setForm((prev) => ({ ...prev, [field]: base64 }));
-        toast.success("Image uploaded (compressed)");
+        if (urls.length > 0) {
+          setForm((prev) => ({ ...prev, [field]: urls[0] }));
+          toast.success("Image uploaded successfully");
+        }
       } else if (isPdf || isDoc) {
         // For documents, we don't compress but we must limit size to prevent DB truncation
         if (file.size > 1.5 * 1024 * 1024) { // 1.5MB Limit

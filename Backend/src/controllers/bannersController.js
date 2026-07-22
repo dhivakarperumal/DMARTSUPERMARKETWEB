@@ -1,4 +1,4 @@
-const { getPool, getLargePacketConnection } = require("../config/db");
+const { getPool } = require("../config/db");
 
 /* ── Auto-create banners table ── */
 const createBannersTable = async () => {
@@ -65,8 +65,8 @@ const createBanner = async (req, res) => {
         await createBannersTable();
         const data = req.body || {};
 
-        // Use large packet connection for base64 image storage
-        const connection = await getLargePacketConnection();
+        const pool = getPool();
+        const connection = await pool.getConnection();
         try {
             const [result] = await connection.execute(
                 `INSERT INTO banners (title, subtitle, description, image, mobile_image, link, type, active, sort_order)
@@ -118,8 +118,7 @@ const updateBanner = async (req, res) => {
         }
 
         const row = existing[0];
-        // Use large packet connection for update with images
-        const connection = await getLargePacketConnection();
+        const connection = await pool.getConnection();
         try {
             await connection.execute(
                 `UPDATE banners SET

@@ -1,4 +1,4 @@
-const { getPool, getLargePacketConnection } = require("../config/db");
+const { getPool } = require("../config/db");
 const { createProductTable } = require("../config/initDatabase");
 const crypto = require("crypto");
 
@@ -34,7 +34,8 @@ const createProduct = async (req, res) => {
       });
     }
 
-    const connection = await getLargePacketConnection();
+    const pool = getPool();
+    const connection = await pool.getConnection();
 
     try {
       await createProductTable();
@@ -259,7 +260,8 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    const connection = await getLargePacketConnection();
+    const pool = getPool();
+    const connection = await pool.getConnection();
 
     try {
       await createProductTable();

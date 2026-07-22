@@ -1,4 +1,4 @@
-const { getPool, getLargePacketConnection } = require("../config/db");
+const { getPool } = require("../config/db");
 const { createCategoryTable } = require("../config/initDatabase");
 const crypto = require("crypto");
 
@@ -38,7 +38,8 @@ const createCategory = async (req, res) => {
       });
     }
 
-    const connection = await getLargePacketConnection();
+    const pool = getPool();
+    const connection = await pool.getConnection();
 
     try {
       await createCategoryTable();
@@ -192,7 +193,8 @@ const updateCategory = async (req, res) => {
       });
     }
 
-    const connection = await getLargePacketConnection();
+    const pool = getPool();
+    const connection = await pool.getConnection();
 
     try {
       await createCategoryTable();

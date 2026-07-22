@@ -19,6 +19,7 @@ import {
     FiSliders
 } from "react-icons/fi";
 import imageCompression from "browser-image-compression";
+import { compressAndUpload } from "../../utils/uploadService";
 import { toast, Toaster } from "react-hot-toast";
 
 const Category = () => {
@@ -159,27 +160,20 @@ const Category = () => {
                 return;
             }
 
-            // Aggressively compress to avoid max_allowed_packet limits
-            const compressed = await imageCompression(file, {
-                maxSizeMB: 0.5,  // Reduced from 5MB to 500KB
-                maxWidthOrHeight: 800,  // Reduced from 1200 to 800px
-                useWebWorker: true,
-                fileType: "image/jpeg",  // Force JPEG for better compression
-                initialQuality: 0.7,  // Reduce quality
+            const urls = await compressAndUpload([file], "categories", {
+                maxSizeMB: 0.5,
+                maxWidthOrHeight: 800,
+                fileType: "image/jpeg",
+                initialQuality: 0.7,
             });
 
-            const imageUrl = await imageCompression.getDataUrlFromFile(compressed);
-            
-            // Warn if base64 is still large
-            if (imageUrl.length > 2 * 1024 * 1024) {
-                toast.warning("Image is still large, compression may take a moment");
+            if (urls.length > 0) {
+                setFormData((p) => ({
+                    ...p,
+                    image: urls[0],
+                }));
+                toast.success("Category image added!");
             }
-
-            setFormData((p) => ({
-                ...p,
-                image: imageUrl,
-            }));
-            toast.success("Category image added!");
         } catch (error) {
             console.error("Image upload failed:", error);
             toast.error("Image upload failed");

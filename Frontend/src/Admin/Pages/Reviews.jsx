@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import api from "../../api";
 import toast from "react-hot-toast";
+import { compressAndUpload } from "../../utils/uploadService";
 
 /* ── Helpers ── */
 const Stars = ({ rating, size = "sm" }) => {
@@ -146,11 +147,20 @@ const Reviews = () => {
     finally      { setSubmitting(false); }
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => setNewReview(p => ({ ...p, review_image: reader.result }));
-    reader.readAsDataURL(file);
+    try {
+      const urls = await compressAndUpload([file], "reviews", {
+        maxSizeMB: 0.3,
+        maxWidthOrHeight: 800,
+      });
+      if (urls.length > 0) {
+        setNewReview(p => ({ ...p, review_image: urls[0] }));
+      }
+    } catch (err) {
+      console.error("Review image upload error:", err);
+      toast.error("Image upload failed");
+    }
   };
 
   const filterTabs = ["All", "Pending", "Published", "Flagged"];

@@ -15,46 +15,7 @@ import api from "../../api";
 import { toast, Toaster } from "react-hot-toast";
 import imageCompression from "browser-image-compression";
 import Barcode from "react-barcode";
-
-const uploadToGoDaddy = async (files, category = "products") => {
-  const formData = new FormData();
-  files.forEach((file, i) =>
-    formData.append("files[]", file, file.name || `file_${i}`)
-  );
-  formData.append("category", category);
-
-  const toastId = toast.loading(`Uploading ${files.length} file(s)...`);
-
-  try {
-    const res = await fetch("https://dmart.qtechx.com/api/upload.php", {
-      method: "POST",
-      body: formData,
-    });
-
-    const data = await res.json();
-    toast.dismiss(toastId);
-
-    if (!res.ok || !data) {
-      console.error("Upload failed response:", res.status, data);
-      toast.error(`Upload failed: server responded ${res.status}`);
-      return [];
-    }
-
-    if (data.success && Array.isArray(data.urls) && data.urls.length > 0) {
-      toast.success(`Uploaded ${data.urls.length} file(s) successfully`);
-      return data.urls;
-    }
-
-    console.error("Upload response (no urls):", data);
-    toast.error("Upload failed: no URLs returned from server");
-    return [];
-  } catch (err) {
-    toast.dismiss(toastId);
-    console.error("Upload error:", err);
-    toast.error(`Upload failed: ${err.message || "network error"}`);
-    return [];
-  }
-};
+import { uploadFiles } from "../../utils/uploadService";
 
 const AddProducts = () => {
   const { id } = useParams();
@@ -445,7 +406,7 @@ const AddProducts = () => {
       );
 
       const filesToUpload = compressedFiles.map((blob, i) => new File([blob], files[i].name || `image_${i}.jpg`, { type: blob.type }));
-      const urls = await uploadToGoDaddy(filesToUpload, "products");
+      const urls = await uploadFiles(filesToUpload, "products");
 
       if (urls.length > 0) {
         setFormData((prev) => ({
@@ -471,7 +432,7 @@ const AddProducts = () => {
       const compressed = await imageCompression(file, options);
       const fileToUpload = new File([compressed], file.name || 'thumbnail.jpg', { type: compressed.type });
       
-      const urls = await uploadToGoDaddy([fileToUpload], "products");
+      const urls = await uploadFiles([fileToUpload], "products");
       if (urls && urls.length > 0) {
         setFormData((prev) => ({ ...prev, thumbnail_image: urls[0] }));
       }
@@ -493,7 +454,7 @@ const AddProducts = () => {
       const compressed = await imageCompression(file, options);
       const fileToUpload = new File([compressed], file.name || 'barcode.jpg', { type: compressed.type });
       
-      const urls = await uploadToGoDaddy([fileToUpload], "products");
+      const urls = await uploadFiles([fileToUpload], "products");
       if (urls && urls.length > 0) {
         setFormData((prev) => ({ ...prev, barcode_image: urls[0] }));
       }

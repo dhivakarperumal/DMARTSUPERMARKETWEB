@@ -14,6 +14,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api";
 import { toast, Toaster } from "react-hot-toast";
 import imageCompression from "browser-image-compression";
+import { compressAndUpload } from "../../utils/uploadService";
 import Barcode from "react-barcode";
 
 const AddCombo = () => {
@@ -387,23 +388,17 @@ const AddCombo = () => {
         return;
       }
 
-      const imagesArray = await Promise.all(
-        files.map(async (file) => {
-          const options = {
-            maxSizeMB: 0.1,
-            maxWidthOrHeight: 800,
-            useWebWorker: true,
-          };
-          const compressed = await imageCompression(file, options);
-          return imageCompression.getDataUrlFromFile(compressed);
-        }),
-      );
+      const urls = await compressAndUpload(files, "products", {
+        maxSizeMB: 0.1,
+        maxWidthOrHeight: 800,
+      });
 
-      setFormData((prev) => ({
-        ...prev,
-        product_images: [...(prev.product_images || []), ...imagesArray],
-      }));
-      toast.success(`${files.length} image(s) added.`);
+      if (urls.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          product_images: [...(prev.product_images || []), ...urls],
+        }));
+      }
     } catch (error) {
       console.error("Image upload error:", error);
       toast.error("Image upload failed.");
@@ -419,10 +414,13 @@ const AddCombo = () => {
         maxWidthOrHeight: 800,
         useWebWorker: true,
       };
-      const compressed = await imageCompression(file, options);
-      const imageUrl = await imageCompression.getDataUrlFromFile(compressed);
-      setFormData((prev) => ({ ...prev, thumbnail_image: imageUrl }));
-      toast.success("Thumbnail updated.");
+      const urls = await compressAndUpload([file], "products", {
+        maxSizeMB: 0.1,
+        maxWidthOrHeight: 800,
+      });
+      if (urls.length > 0) {
+        setFormData((prev) => ({ ...prev, thumbnail_image: urls[0] }));
+      }
     } catch (error) {
       console.error("Thumbnail upload error:", error);
       toast.error("Thumbnail upload failed.");
@@ -438,10 +436,13 @@ const AddCombo = () => {
         maxWidthOrHeight: 800,
         useWebWorker: true,
       };
-      const compressed = await imageCompression(file, options);
-      const imageUrl = await imageCompression.getDataUrlFromFile(compressed);
-      setFormData((prev) => ({ ...prev, barcode_image: imageUrl }));
-      toast.success("Barcode image uploaded.");
+      const urls = await compressAndUpload([file], "products", {
+        maxSizeMB: 0.1,
+        maxWidthOrHeight: 800,
+      });
+      if (urls.length > 0) {
+        setFormData((prev) => ({ ...prev, barcode_image: urls[0] }));
+      }
     } catch (error) {
       console.error("Barcode upload error:", error);
       toast.error("Barcode upload failed.");
