@@ -4,9 +4,25 @@ const crypto = require("crypto");
 
 const parseJsonField = (value) => {
   if (!value) return [];
+  if (typeof value !== 'string') return Array.isArray(value) ? value : [value];
   try {
     return JSON.parse(value);
   } catch (error) {
+    console.error("JSON parse error on field. Attempting recovery...");
+    // If it's a truncated JSON array, try to extract the base64 or add the closing bracket
+    if (value.startsWith('["data:image')) {
+       // Try fixing missing closing bracket/quotes
+       try { return JSON.parse(value + '"]'); } catch(e) {}
+       try { return JSON.parse(value + '"]'); } catch(e) {} // in case it was missing just ]
+       
+       // Fallback: extract everything between [" and the end
+       const match = value.match(/\["([^"]+)/);
+       if (match && match[1]) return [match[1]];
+    }
+    // If it was somehow saved as a raw base64 string without JSON
+    if (value.startsWith('data:image') || value.startsWith('http')) {
+      return [value];
+    }
     return [];
   }
 };
