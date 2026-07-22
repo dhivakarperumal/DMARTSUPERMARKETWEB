@@ -226,8 +226,25 @@ const AllProducts = () => {
 
             // 2. Try product_images array
             if (!imgUrl && product.product_images) {
-                const imgs = typeof product.product_images === 'string' ? JSON.parse(product.product_images) : product.product_images;
-                if (Array.isArray(imgs) && imgs.length > 0) imgUrl = imgs[0];
+                let imgs = product.product_images;
+                if (typeof imgs === 'string') {
+                    try {
+                        imgs = JSON.parse(imgs);
+                        if (typeof imgs === 'string') {
+                            imgs = JSON.parse(imgs);
+                        }
+                    } catch (e) {
+                        // Ignore parse error
+                    }
+                }
+                if (Array.isArray(imgs) && imgs.length > 0) {
+                    imgUrl = imgs[0];
+                } else if (typeof imgs === 'string' && imgs.includes(',')) {
+                    const splitImgs = imgs.split(',').map(s => s.trim()).filter(Boolean);
+                    if (splitImgs.length > 0) imgUrl = splitImgs[0];
+                } else if (typeof imgs === 'string' && !imgs.startsWith('[')) {
+                    imgUrl = imgs;
+                }
             }
 
             const finalUrl = processUrl(imgUrl);

@@ -111,12 +111,26 @@ const ProductDetails = () => {
       const trimmed = value.trim();
       if (!trimmed) return [];
 
+      let parsed = trimmed;
       try {
-        const parsed = JSON.parse(trimmed);
-        return Array.isArray(parsed) ? parsed.filter(Boolean) : [parsed].filter(Boolean);
-      } catch {
-        if (trimmed.startsWith('[')) return [];
-        return [trimmed];
+        parsed = JSON.parse(trimmed);
+        if (typeof parsed === 'string') {
+          parsed = JSON.parse(parsed);
+        }
+      } catch (e) {
+        // JSON parse failed, continue
+      }
+
+      if (Array.isArray(parsed)) {
+        return parsed.filter(Boolean);
+      }
+
+      if (typeof parsed === 'string') {
+        if (parsed.startsWith('[')) return []; // Invalid json array
+        if (parsed.includes(',')) {
+          return parsed.split(',').map((s) => s.trim()).filter(Boolean);
+        }
+        return [parsed].filter(Boolean);
       }
     }
 

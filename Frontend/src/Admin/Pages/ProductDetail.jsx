@@ -108,14 +108,29 @@ const ProductDetail = () => {
 
     // ─── Derived Data ───
     const getDisplayImages = () => {
+        let parsedImgs = [];
         if (product.product_images) {
-            try {
-                const imgs = typeof product.product_images === "string"
-                    ? JSON.parse(product.product_images) : product.product_images;
-                if (Array.isArray(imgs) && imgs.length > 0)
-                    return imgs.map(processUrl).filter(Boolean);
-            } catch (e) {}
+            let imgs = product.product_images;
+            if (typeof imgs === 'string') {
+                try {
+                    imgs = JSON.parse(imgs);
+                    if (typeof imgs === 'string') {
+                        imgs = JSON.parse(imgs);
+                    }
+                } catch (e) {}
+            }
+            if (Array.isArray(imgs) && imgs.length > 0) {
+                parsedImgs = imgs;
+            } else if (typeof imgs === 'string' && imgs.includes(',')) {
+                parsedImgs = imgs.split(',').map(s => s.trim()).filter(Boolean);
+            } else if (typeof imgs === 'string' && !imgs.startsWith('[')) {
+                parsedImgs = [imgs];
+            }
         }
+        
+        const displayImgs = parsedImgs.map(processUrl).filter(Boolean);
+        if (displayImgs.length > 0) return displayImgs;
+
         if (product.thumbnail_image) {
             const u = processUrl(product.thumbnail_image);
             if (u) return [u];

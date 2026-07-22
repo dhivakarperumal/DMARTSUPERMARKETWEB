@@ -48,13 +48,26 @@ const QuickViewModal = ({ product, onClose }) => {
 
       if (!trimmed) return [];
 
+      let parsed = trimmed;
       try {
-        const parsed = JSON.parse(trimmed);
-        return Array.isArray(parsed)
-          ? parsed.filter(Boolean)
-          : [parsed];
-      } catch {
-        return [trimmed];
+        parsed = JSON.parse(trimmed);
+        if (typeof parsed === 'string') {
+          parsed = JSON.parse(parsed);
+        }
+      } catch (e) {
+        // Ignored
+      }
+
+      if (Array.isArray(parsed)) {
+        return parsed.filter(Boolean);
+      }
+
+      if (typeof parsed === 'string') {
+        if (parsed.startsWith('[')) return [];
+        if (parsed.includes(',')) {
+          return parsed.split(',').map((s) => s.trim()).filter(Boolean);
+        }
+        return [parsed].filter(Boolean);
       }
     }
 
