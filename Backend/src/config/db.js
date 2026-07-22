@@ -6,7 +6,7 @@ const config = {
   port: process.env.DB_PORT || 3306,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'dmart_db',
+  database: process.env.DB_NAME || 'supermarket_db',
   waitForConnections: true,
   connectionLimit: 10,
   maxIdle: 10, // max idle connections, the default value is the same as `connectionLimit`
@@ -105,4 +105,17 @@ pool.execute = async function(...args) {
   }
 };
 
-module.exports = pool;
+// Named helpers expected by controllers
+const getPool = () => pool;
+
+const getLargePacketConnection = async () => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query("SET SESSION max_allowed_packet = 67108864");
+  } catch (err) {
+    console.warn("⚠️ Could not set max_allowed_packet on connection:", err.message);
+  }
+  return conn;
+};
+
+module.exports = { pool, getPool, getLargePacketConnection };

@@ -29,8 +29,8 @@ import {
 import { useAuth } from "../PrivateRouter/AuthContext";
 
 // Public assets in Vite should be referenced by absolute path
-const basketImage = "/basket.png";
-const logoImage = "/logo.png";
+const basketImage = "/images/basket.png";
+const logoImage = "/images/logo.png";
 
 /* ================= NAV ITEMS ================= */
 const navItems = [
