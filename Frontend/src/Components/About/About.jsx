@@ -21,7 +21,7 @@ export default function About() {
           <div className="relative">
             <div className="overflow-hidden rounded-3xl shadow-2xl">
               <img
-                src="/aboutimagesupermarket.png"
+                src="/images/aboutimagesupermarket.png"
                 alt="Supermarket"
                 className="w-full h-[500px] object-cover hover:scale-105 transition duration-700"
               />
