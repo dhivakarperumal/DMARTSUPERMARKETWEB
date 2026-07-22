@@ -21,7 +21,7 @@ exports.register = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
         
-        const user_id = crypto.randomUUID();
+        const user_id = crypto.randomBytes(16).toString('hex');
         // Since created_by and updated_by are NOT NULL, we use the generated user_id
         const created_by = user_id; 
         const updated_by = user_id;
@@ -41,7 +41,7 @@ exports.register = async (req, res) => {
             return res.status(400).json({ error: 'A user with this phone number or username already exists.' });
         }
         
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 };
 
@@ -97,6 +97,6 @@ exports.login = async (req, res) => {
         });
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 };
