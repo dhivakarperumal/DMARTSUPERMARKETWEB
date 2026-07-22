@@ -219,15 +219,37 @@ const AllProducts = () => {
                 return `${backendUrl}${cleanPath}`;
             };
 
-            // 1. Try thumbnail first
-            if (product.thumbnail_image) {
-                imgUrl = product.thumbnail_image;
-            }
+            // Helper to extract first image from various formats
+            const extractFirstImage = (imageField) => {
+                if (!imageField) return null;
+                if (Array.isArray(imageField)) {
+                    return imageField.length > 0 ? imageField[0] : null;
+                }
+                if (typeof imageField === 'string') {
+                    // Try to parse if it looks like a JSON array
+                    if (imageField.trim().startsWith('[')) {
+                        try {
+                            const parsed = JSON.parse(imageField);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                return parsed[0];
+                            }
+                        } catch (e) {
+                            // If parsing fails, fall back to returning the raw string
+                            return imageField;
+                        }
+                    }
+                    // It's a plain string URL
+                    return imageField;
+                }
+                return null;
+            };
 
-            // 2. Try product_images array
-            if (!imgUrl && product.product_images) {
-                const imgs = typeof product.product_images === 'string' ? JSON.parse(product.product_images) : product.product_images;
-                if (Array.isArray(imgs) && imgs.length > 0) imgUrl = imgs[0];
+            // 1. Try thumbnail first
+            imgUrl = extractFirstImage(product.thumbnail_image);
+
+            // 2. Try product_images array if thumbnail is missing
+            if (!imgUrl) {
+                imgUrl = extractFirstImage(product.product_images);
             }
 
             const finalUrl = processUrl(imgUrl);
