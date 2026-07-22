@@ -576,6 +576,11 @@ const AddProducts = () => {
       // explicitly use the edited total stock value
       finalData.total_stock = Number(formData.total_stock || 0);
 
+      // Fallback: If the backend drops product_images arrays, ensure we at least save the first image in thumbnail_image
+      if (!finalData.thumbnail_image && finalData.product_images && finalData.product_images.length > 0) {
+        finalData.thumbnail_image = finalData.product_images[0];
+      }
+
       if (isEdit) {
         await api.put(`/products/${id}`, finalData);
         toast.success("Product updated successfully.");
