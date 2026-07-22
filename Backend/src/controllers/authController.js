@@ -1,4 +1,4 @@
-const db = require('../config/db');
+const { pool } = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -12,7 +12,7 @@ exports.register = async (req, res) => {
         }
         
         // Check if user already exists
-        const [existingUsers] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+        const [existingUsers] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
         if (existingUsers.length > 0) {
             return res.status(400).json({ error: 'User already exists with this email' });
         }
@@ -26,7 +26,7 @@ exports.register = async (req, res) => {
         const created_by = user_id; 
         const updated_by = user_id;
 
-        await db.query(
+        await pool.query(
             `INSERT INTO users (user_id, username, email, phone, password, role, status, created_by, updated_by)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [user_id, username, email, phone || null, hashedPassword, 'user', 'active', created_by, updated_by]
@@ -56,7 +56,7 @@ exports.login = async (req, res) => {
             return res.status(400).json({ error: 'Email/Username/Phone and password are required' });
         }
         
-        const [users] = await db.query(
+        const [users] = await pool.query(
             'SELECT * FROM users WHERE email = ? OR username = ? OR phone = ?', 
             [loginIdentifier, loginIdentifier, loginIdentifier]
         );
@@ -97,6 +97,16 @@ exports.login = async (req, res) => {
         });
     } catch (error) {
         console.error('Login error:', error);
+        res.status(500).json({ error: 'Internal server error', details: error.message });
+    }
+};
+
+exports.getAllUsers = async (req, res) => {
+    try {
+        const [users] = await pool.query('SELECT user_id, username, email, phone, role, status, created_at FROM users');
+        res.status(200).json(users);
+    } catch (error) {
+        console.error('Error fetching users:', error);
         res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 };

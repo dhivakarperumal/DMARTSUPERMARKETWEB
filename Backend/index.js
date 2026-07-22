@@ -107,6 +107,7 @@ app.use('/api/login', loginRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/purchase', purchaseRoutes);
+app.use('/api/purchases', purchaseRoutes);
 app.use('/api/reports', reportsRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/salary', salaryRouter);
