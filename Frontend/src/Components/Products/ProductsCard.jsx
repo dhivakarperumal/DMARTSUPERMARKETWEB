@@ -103,7 +103,7 @@ const ProductCard = ({ product }) => {
   );
 
   if (images.length === 0) {
-    images.push(`https://ui-avatars.com/api/?name=${encodeURIComponent(product?.name || "Product")}&background=random`);
+    images.push(`https://ui-avatars.com/api/?name=${encodeURIComponent(product?.name || "Product")}&background=f1f5f9&color=94a3b8`);
   }
 
   const image = hovered && images[1] ? images[1] : images[0];
@@ -183,8 +183,11 @@ const ProductCard = ({ product }) => {
           <img
             src={images[0]}
             alt={product?.name}
-            className={`max-w-full max-h-full object-cover transition-opacity duration-500 ${hovered && images[1] ? "opacity-0" : "opacity-100"
-              }`}
+            className={`max-w-full max-h-full object-cover transition-opacity duration-500 ${hovered && images[1] ? "opacity-0" : "opacity-100"}`}
+            onError={(e) => {
+              e.target.onerror = null; // Prevent infinite loop if fallback fails
+              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product?.name || "Product")}&background=f1f5f9&color=94a3b8`;
+            }}
           />
 
           {/* Hover Image */}
@@ -192,8 +195,11 @@ const ProductCard = ({ product }) => {
             <img
               src={images[1]}
               alt={product?.name}
-              className={`absolute max-w-full max-h-full object-cover transition-opacity duration-500 ${hovered ? "opacity-100" : "opacity-0"
-                }`}
+              className={`absolute max-w-full max-h-full object-cover transition-opacity duration-500 ${hovered ? "opacity-100" : "opacity-0"}`}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = 'none'; // Hide hover image if broken
+              }}
             />
           )}
         </div>

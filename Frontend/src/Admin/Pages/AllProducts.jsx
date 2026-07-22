@@ -209,56 +209,67 @@ const AllProducts = () => {
     }, [searchTerm, showLowStockOnly]);
 
     const getProductImage = (product) => {
-        let imgUrl = null;
         try {
-            const processUrl = (url) => {
-                if (!url || typeof url !== 'string') return null;
-                if (url.startsWith('http') || url.startsWith('data:')) return url;
+            const resolveImage = (img) => {
+                if (!img || typeof img !== 'string') return null;
+                const trimmed = img.trim();
+                if (!trimmed) return null;
+                if (trimmed.startsWith('http') || trimmed.startsWith('data:')) return trimmed;
+
                 const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-                const cleanPath = url.startsWith('/') ? url : `/${url}`;
-                return `${backendUrl}${cleanPath}`;
+                const cleanPath = trimmed.replace(/\\/g, '/');
+                const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
+                return `${backendUrl}${finalPath}`;
             };
 
-            // Helper to extract first image from various formats
-            const extractFirstImage = (imageField) => {
-                if (!imageField) return null;
-                if (Array.isArray(imageField)) {
-                    return imageField.length > 0 ? imageField[0] : null;
-                }
-                if (typeof imageField === 'string') {
-                    // Try to parse if it looks like a JSON array
-                    if (imageField.trim().startsWith('[')) {
-                        try {
-                            const parsed = JSON.parse(imageField);
-                            if (Array.isArray(parsed) && parsed.length > 0) {
-                                return parsed[0];
-                            }
-                        } catch (e) {
-                            // If parsing fails, fall back to returning the raw string
-                            return imageField;
-                        }
+            const normalizeImageList = (value) => {
+                if (!value) return [];
+                if (Array.isArray(value)) return value.filter(Boolean);
+                if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    if (!trimmed) return [];
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        return Array.isArray(parsed) ? parsed.filter(Boolean) : [parsed].filter(Boolean);
+                    } catch {
+                        if (trimmed.startsWith('[')) return [];
+                        return [trimmed];
                     }
-                    // It's a plain string URL
-                    return imageField;
                 }
-                return null;
+                return [value];
             };
 
-            // 1. Try thumbnail first
-            imgUrl = extractFirstImage(product.thumbnail_image);
+            const imageCandidates = [
+                product?.thumbnail_image,
+                product?.product_images,
+                product?.images,
+                product?.image,
+                product?.image_url,
+                product?.thumbnail,
+                product?.variants?.[0]?.images,
+            ];
 
-            // 2. Try product_images array if thumbnail is missing
-            if (!imgUrl) {
-                imgUrl = extractFirstImage(product.product_images);
+            const images = Array.from(
+                new Set(
+                    imageCandidates
+                        .flatMap((candidate) => normalizeImageList(candidate))
+                        .map((img) => resolveImage(img))
+                        .filter(Boolean)
+                )
+            );
+
+            if (images.length > 0) {
+                console.log(`[DEBUG] Product ${product.id || 'Unknown'}: Found valid image ->`, images[0]);
+                return images[0];
             }
+            
+            console.log(`[DEBUG] Product ${product.id || 'Unknown'}: No images found in candidates. Full product data:`, product);
 
-            const finalUrl = processUrl(imgUrl);
-            if (finalUrl) return finalUrl;
         } catch (e) {
             console.error("Error getting product image:", e);
         }
 
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name || 'P')}&background=random`;
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(product?.name || 'P')}&background=f1f5f9&color=94a3b8`;
     };
 
     const downloadBarcodesPDF = () => {
@@ -618,7 +629,10 @@ const AllProducts = () => {
                                                                 alt={product.name}
                                                                 loading="lazy"
                                                                 className="w-full h-full object-contain"
-                                                                onError={(e) => e.target.src = 'https://via.placeholder.com/100?text=No+Image'}
+                                                                onError={(e) => {
+                                                                    e.target.onerror = null;
+                                                                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product?.name || 'P')}&background=f1f5f9&color=94a3b8`;
+                                                                }}
                                                             />
                                                         </div>
                                                         <div className="min-w-0">
@@ -718,7 +732,10 @@ const AllProducts = () => {
                                                 alt={product.name}
                                                 loading="lazy"
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                                                onError={(e) => e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&background=${productIsCombo ? '6366f1' : 'f1f5f9'}&color=${productIsCombo ? 'ffffff' : '94a3b8'}&size=400`}
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product?.name || 'P')}&background=${productIsCombo ? '6366f1' : 'f1f5f9'}&color=${productIsCombo ? 'ffffff' : '94a3b8'}&size=400`;
+                                                }}
                                             />
 
                                             {/* Gradient overlay */}
