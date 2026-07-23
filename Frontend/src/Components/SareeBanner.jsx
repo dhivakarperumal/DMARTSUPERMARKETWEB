@@ -24,7 +24,7 @@ const banners = [
     bg: "from-yellow-50 to-orange-100",
     btn: "bg-yellow-500 hover:bg-yellow-600 text-black",
   },
-  
+
   {
     id: 3,
     title: "SUPER SAVER",
@@ -55,46 +55,48 @@ export default function OfferBanner() {
           {banners.map((item) => (
             <div
               key={item.id}
-              className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${item.bg} p-6 h-[240px] shadow-md hover:shadow-xl transition-all duration-500 group`}
+              className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${item.bg} h-[240px] p-6 shadow-md hover:shadow-xl transition-all duration-500 group`}
             >
               {/* Offer Badge */}
               {item.badge && (
-                <div className="absolute top-4 right-4 bg-red-500 text-white rounded-full w-16 h-16 flex items-center justify-center text-xs font-bold text-center shadow-lg rotate-12">
+                <div className="absolute top-4 right-4 z-20 bg-red-500 text-white rounded-full w-16 h-16 flex items-center justify-center text-xs font-bold text-center shadow-lg rotate-12">
                   {item.badge}
                 </div>
               )}
 
-              {/* Content */}
-              <div className="relative z-10 w-[50%] h-full flex flex-col justify-center">
-                <h3 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">
+              {/* Left Content */}
+              <div className="relative z-10 flex flex-col justify-center h-full max-w-[55%]">
+                <h3 className="text-3xl font-extrabold leading-tight text-gray-900">
                   {item.title}
                 </h3>
 
-                <p className="mt-2 text-base md:text-lg font-semibold text-gray-700">
+                <p className="mt-3 text-2xl font-semibold text-gray-700">
                   {item.subtitle}
                 </p>
 
-                <p className="mt-1 text-sm md:text-base text-gray-600">
+                <p className="mt-2 text-base text-gray-600 leading-relaxed">
                   {item.desc}
                 </p>
 
                 <Link
                   to="/shop"
-                  className={`${item.btn} mt-4 inline-flex w-fit items-center justify-center px-5 py-2 rounded-full text-sm font-semibold text-white transition-all duration-300 hover:scale-105`}
+                  className={`${item.btn} mt-6 inline-flex w-fit items-center justify-center px-6 py-3 rounded-full text-sm font-semibold text-white transition duration-300 hover:scale-105`}
                 >
                   {item.button}
                 </Link>
               </div>
 
-              {/* Banner Image */}
-              <img
-                src={item.image}
-                alt={item.title}
-                className="absolute right-0 bottom-0 h-[95%] w-auto object-contain group-hover:scale-105 transition-transform duration-500"
-              />
+              {/* Right Image */}
+              <div className="absolute right-4 bottom-0 w-[42%] h-full flex items-end justify-center pointer-events-none">
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="max-h-[92%] w-auto object-contain transition-transform duration-500 group-hover:scale-105"
+                />
+              </div>
 
-              {/* Decorative Circle */}
-              <div className="absolute -right-12 -bottom-12 w-36 h-36 rounded-full bg-white/20"></div>
+              {/* Decoration */}
+              <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-white/20"></div>
             </div>
           ))}
         </div>
