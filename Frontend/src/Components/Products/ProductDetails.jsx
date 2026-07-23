@@ -310,29 +310,28 @@ const ProductDetails = () => {
 
   // review submitting section
   const submitReview = async () => {
+    if (!user) {
+      toast.error("Please login to submit a review.");
+      return;
+    }
+
     try {
       if (!rating) {
-        alert("Please select rating");
+        toast.error("Please select rating");
         return;
       }
-      console.log("Submitting Review:", {
-        product_id: product.id,
-        user_name: user?.name,
-        user_email: user?.email,
-        rating,
-        comment: reviewText,
-      });
+      const uId = user?.id || user?.user_id;
 
       await api.post(`/products/${product.id}/reviews`, {
         user_name: user?.name,
         user_email: user?.email,
-        user_id: user?.id || user?.user_id,
+        user_id: uId,
         rating: rating,
         comment: reviewText,
         review_image: reviewImage,
       });
 
-      alert("Review submitted successfully!");
+      toast.success("Review submitted successfully!");
 
       setRating(0);
       setReviewText("");
@@ -344,9 +343,8 @@ const ProductDetails = () => {
       fetchProduct(); // Refresh the product and reviews list immediately
     } catch (error) {
       console.error(error);
-      const errorMsg =
-        error.response?.data?.message || "Failed to submit review";
-      alert(errorMsg);
+      const errorMsg = error.response?.data?.message || "Failed to submit review";
+      toast.error(errorMsg);
 
       if (errorMsg.includes("already submitted")) {
         setUserReviewed(true);
@@ -751,6 +749,13 @@ const ProductDetails = () => {
             <p className="text-green-600 font-semibold">
               You already reviewed this product
             </p>
+          ) : !user ? (
+            <button
+              onClick={() => toast.error("Please login to write a review")}
+              className="px-6 py-2 rounded-xl font-semibold bg-gray-500 text-white shadow-md hover:bg-gray-600 transition cursor-pointer"
+            >
+              Login to Write Review
+            </button>
           ) : (
             <button
               onClick={() => setShowReviewForm(!showReviewForm)}
@@ -931,8 +936,8 @@ const ProductDetails = () => {
                 autoplay={{ delay: 3000 }}
                 className="review-swiper pb-12"
               >
-                {reviews.map((review) => (
-                  <SwiperSlide key={review.id}>
+                {reviews.map((review, idx) => (
+                  <SwiperSlide key={review.user_id || idx}>
                     <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm h-full">
                       <div className="flex justify-between items-start mb-4">
                         <div>
