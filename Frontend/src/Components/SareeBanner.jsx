@@ -65,22 +65,22 @@ export default function OfferBanner() {
               )}
 
               {/* Left Content */}
-              <div className="relative z-10 flex flex-col justify-center h-full max-w-[55%]">
-                <h3 className="text-3xl font-extrabold leading-tight text-gray-900">
+              <div className="relative z-10 flex flex-col justify-center h-full max-w-full sm:max-w-[55%]">
+                <h3 className="text-xl sm:text-2xl lg:text-3xl font-extrabold leading-tight text-gray-900">
                   {item.title}
                 </h3>
 
-                <p className="mt-3 text-2xl font-semibold text-gray-700">
+                <p className="mt-2 text-base sm:text-xl lg:text-2xl font-semibold text-gray-700">
                   {item.subtitle}
                 </p>
 
-                <p className="mt-2 text-base text-gray-600 leading-relaxed">
+                <p className="mt-1 text-sm sm:text-base text-gray-600 leading-relaxed">
                   {item.desc}
                 </p>
 
                 <Link
                   to="/shop"
-                  className={`${item.btn} mt-6 inline-flex w-fit items-center justify-center px-6 py-3 rounded-full text-sm font-semibold text-white transition duration-300 hover:scale-105`}
+                  className={`${item.btn} mt-4 sm:mt-6 inline-flex w-fit items-center justify-center px-5 sm:px-6 py-2 sm:py-3 rounded-full text-sm font-semibold text-white transition duration-300 hover:scale-105`}
                 >
                   {item.button}
                 </Link>
