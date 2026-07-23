@@ -67,7 +67,7 @@ const Checkout = () => {
 
   const fetchAddresses = async () => {
     try {
-      const res = await api.get(`/addresses/user/${user.user_id}`);
+      const res = await api.get(`/address/user/${user.user_id}`);
       const userAddresses = res.data || [];
       setAddresses(userAddresses);
 
@@ -807,6 +807,25 @@ const Checkout = () => {
         created_at: new Date().toISOString(),
       };
 
+      // Auto-save address if it's new
+      if (user?.user_id && form.street_address) {
+        const isDuplicate = addresses.some(
+          addr => addr.street_address?.toLowerCase() === form.street_address?.toLowerCase() &&
+                  addr.zip_code === form.zip_code
+        );
+        if (!isDuplicate) {
+          try {
+            await api.post("/address", {
+              ...form,
+              user_id: user.user_id,
+              is_default: addresses.length === 0 ? 1 : 0
+            });
+          } catch (e) {
+            console.error("Failed to auto-save address", e);
+          }
+        }
+      }
+
       await api.post("/orders", orderData);
       await clearCart();
 
@@ -1054,7 +1073,7 @@ const Checkout = () => {
                   </div>
                 )}
 
-                {/* {addresses.length > 0 && (
+                {addresses.length > 0 && (
                   <div className="rounded-[1.75rem] border border-green-100 bg-white p-6 shadow-[0_20px_50px_rgba(14,104,39,0.08)]">
                     <div className="mb-4 flex items-center gap-2">
                       <FiMapPin className="text-[#0e6827]" />
@@ -1084,7 +1103,7 @@ const Checkout = () => {
                       ))}
                     </div>
                   </div>
-                )} */}
+                )}
 
                 <div className="rounded-[1.75rem] border border-green-100 bg-white p-6 shadow-[0_20px_50px_rgba(14,104,39,0.08)]">
                   <div className="mb-4 flex items-center gap-2">
