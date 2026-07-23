@@ -209,17 +209,14 @@ const AllProducts = () => {
     }, [searchTerm, showLowStockOnly]);
 
     const getProductImage = (product) => {
+        let imgUrl = null;
         try {
-            const resolveImage = (img) => {
-                if (!img || typeof img !== 'string') return null;
-                const trimmed = img.trim();
-                if (!trimmed) return null;
-                if (trimmed.startsWith('http') || trimmed.startsWith('data:')) return trimmed;
-
+            const processUrl = (url) => {
+                if (!url || typeof url !== 'string') return null;
+                if (url.startsWith('http') || url.startsWith('data:')) return url;
                 const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-                const cleanPath = trimmed.replace(/\\/g, '/');
-                const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
-                return `${backendUrl}${finalPath}`;
+                const cleanPath = url.startsWith('/') ? url : `/${url}`;
+                return `${backendUrl}${cleanPath}`;
             };
 
             // Try product_images array
@@ -251,7 +248,7 @@ const AllProducts = () => {
             console.error("Error getting product image:", e);
         }
 
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(product?.name || 'P')}&background=f1f5f9&color=94a3b8`;
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name || 'P')}&background=random`;
     };
 
     const downloadBarcodesPDF = () => {
@@ -611,10 +608,7 @@ const AllProducts = () => {
                                                                 alt={product.name}
                                                                 loading="lazy"
                                                                 className="w-full h-full object-contain"
-                                                                onError={(e) => {
-                                                                    e.target.onerror = null;
-                                                                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product?.name || 'P')}&background=f1f5f9&color=94a3b8`;
-                                                                }}
+                                                                onError={(e) => e.target.src = 'https://via.placeholder.com/100?text=No+Image'}
                                                             />
                                                         </div>
                                                         <div className="min-w-0">
@@ -714,10 +708,7 @@ const AllProducts = () => {
                                                 alt={product.name}
                                                 loading="lazy"
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                                                onError={(e) => {
-                                                    e.target.onerror = null;
-                                                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product?.name || 'P')}&background=${productIsCombo ? '6366f1' : 'f1f5f9'}&color=${productIsCombo ? 'ffffff' : '94a3b8'}&size=400`;
-                                                }}
+                                                onError={(e) => e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&background=${productIsCombo ? '6366f1' : 'f1f5f9'}&color=${productIsCombo ? 'ffffff' : '94a3b8'}&size=400`}
                                             />
 
                                             {/* Gradient overlay */}

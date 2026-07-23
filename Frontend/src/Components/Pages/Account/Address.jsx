@@ -43,7 +43,7 @@ export default function Address() {
     if (!user?.user_id) return;
     try {
       setLoading(true);
-      const res = await api.get(`/address/user/${user.user_id}`);
+      const res = await api.get(`/addresses/user/${user.user_id}`);
       setAddresses(res.data || []);
     } catch (error) {
       console.error(error);
@@ -75,10 +75,10 @@ export default function Address() {
     setSubmitting(true);
     try {
       if (editingId) {
-        await api.put(`/address/${editingId}`, { ...form, user_id: user?.user_id });
+        await api.put(`/addresses/${editingId}`, { ...form, user_id: user?.user_id });
         toast.success("Address updated!");
       } else {
-        await api.post("/address", { ...form, user_id: user?.user_id });
+        await api.post("/addresses", { ...form, user_id: user?.user_id });
         toast.success("Address added!");
       }
       resetForm();
@@ -101,7 +101,7 @@ export default function Address() {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this address?")) return;
     try {
-      await api.delete(`/address/${id}`);
+      await api.delete(`/addresses/${id}`);
       toast.success("Address deleted");
       fetchAddresses();
     } catch {
@@ -111,7 +111,7 @@ export default function Address() {
 
   const handleSetDefault = async (id) => {
     try {
-      await api.patch(`/address/${id}/set-default`, { user_id: user?.user_id });
+      await api.patch(`/addresses/${id}/set-default`, { user_id: user?.user_id });
       toast.success("Default address updated");
       fetchAddresses();
     } catch {
