@@ -177,7 +177,8 @@ const getProducts = async (req, res) => {
           best_seller: !!row.best_seller,
           todays_deal: !!row.todays_deal,
           return_available: !!row.return_available,
-          combo_items: parseJsonField(row.combo_items)
+          combo_items: parseJsonField(row.combo_items),
+          customer_review: parseJsonField(row.customer_review)
         };
       });
 
@@ -261,6 +262,7 @@ const getProduct = async (req, res) => {
       product.todays_deal = !!product.todays_deal;
       product.return_available = !!product.return_available;
       product.combo_items = parseJsonField(product.combo_items);
+      product.customer_review = parseJsonField(product.customer_review);
 
       return res.status(200).json(product);
     } finally {
@@ -416,11 +418,78 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+const addProductReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id, user_name, user_email, rating, comment, review_image } = req.body;
+
+    if (!user_id || !rating) {
+      return res.status(400).json({ success: false, message: "user_id and rating are required." });
+    }
+
+    const pool = getPool();
+    const connection = await pool.getConnection();
+
+    try {
+      const [rows] = await connection.execute("SELECT customer_review, rating, review_count FROM products WHERE id = ?", [id]);
+      
+      if (rows.length === 0) {
+        return res.status(404).json({ success: false, message: "Product not found." });
+      }
+
+      const product = rows[0];
+      const reviews = parseJsonField(product.customer_review);
+
+      // Check if user already reviewed
+      if (reviews.some(r => String(r.user_id) === String(user_id))) {
+        return res.status(400).json({ success: false, message: "You have already submitted a review for this product." });
+      }
+
+      const newReview = {
+        user_id,
+        user_name,
+        user_email,
+        rating: Number(rating),
+        review: comment || "",
+        image: review_image || "",
+        created_at: new Date().toISOString()
+      };
+
+      reviews.push(newReview);
+
+      const newReviewCount = (product.review_count || 0) + 1;
+      const currentTotalRating = (product.rating || 5) * (product.review_count || 0);
+      let newAverageRating = (currentTotalRating + Number(rating)) / newReviewCount;
+      if (newAverageRating > 5) newAverageRating = 5;
+
+      await connection.execute(
+        "UPDATE products SET customer_review = ?, rating = ?, review_count = ? WHERE id = ?",
+        [JSON.stringify(reviews), newAverageRating, newReviewCount, id]
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Review added successfully.",
+        review: newReview
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Add product review failed:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add product review.",
+    });
+  }
+};
+
 module.exports = {
   createProduct,
   getProducts,
   getProduct,
   updateProduct,
   deleteProduct,
-  getLatestCode
+  getLatestCode,
+  addProductReview
 };

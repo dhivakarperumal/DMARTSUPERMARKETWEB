@@ -66,27 +66,29 @@ const ProductDetails = () => {
   const [backgroundPosition, setBackgroundPosition] = useState("50% 50%");
   const zoomLevel = 2.5;
 
-  const fetchReviews = async () => {
-    try {
-      setLoadingReviews(true);
-      const res = await api.get(`/reviews/product/${id}`);
-      setReviews(res.data?.reviews || []);
-      setReviewStats(
-        res.data?.stats || {
-          total_reviews: 0,
-          average_rating: 0,
-          five_star: 0,
-          four_star: 0,
-          three_star: 0,
-          two_star: 0,
-          one_star: 0,
-        }
-      );
-    } catch (error) {
-      console.error("Error fetching reviews:", error);
-    } finally {
-      setLoadingReviews(false);
+  const calculateStats = (reviewsArray) => {
+    const total = reviewsArray.length;
+    if (total === 0) {
+      return { total_reviews: 0, average_rating: 0, five_star: 0, four_star: 0, three_star: 0, two_star: 0, one_star: 0 };
     }
+    const stats = { total_reviews: total, average_rating: 0, five_star: 0, four_star: 0, three_star: 0, two_star: 0, one_star: 0 };
+    let sum = 0;
+    reviewsArray.forEach(r => {
+      const rate = Number(r.rating);
+      sum += rate;
+      if (rate === 5) stats.five_star++;
+      else if (rate === 4) stats.four_star++;
+      else if (rate === 3) stats.three_star++;
+      else if (rate === 2) stats.two_star++;
+      else if (rate === 1) stats.one_star++;
+    });
+    stats.average_rating = Number((sum / total).toFixed(1));
+    return stats;
+  };
+
+  const fetchReviews = async () => {
+    // Reviews are now fetched with the product as customer_review
+    setLoadingReviews(false);
   };
 
   const resolveImageUrl = (url) => {
@@ -211,6 +213,11 @@ const ProductDetails = () => {
         setSelectedImage(images[0]);
         setSelectedSize(null);
       }
+
+      const reviewsArr = data.customer_review || [];
+      setReviews(reviewsArr);
+      setReviewStats(calculateStats(reviewsArr));
+
     } catch (error) {
       console.error(error);
     }
@@ -316,8 +323,7 @@ const ProductDetails = () => {
         comment: reviewText,
       });
 
-      await api.post("/reviews", {
-        product_id: product.id,
+      await api.post(`/products/${product.id}/reviews`, {
         user_name: user?.name,
         user_email: user?.email,
         user_id: user?.id || user?.user_id,
@@ -335,7 +341,7 @@ const ProductDetails = () => {
 
       // ⭐ IMPORTANT
       setUserReviewed(true);
-      fetchReviews(); // Refresh the reviews list immediately
+      fetchProduct(); // Refresh the product and reviews list immediately
     } catch (error) {
       console.error(error);
       const errorMsg =
@@ -349,23 +355,16 @@ const ProductDetails = () => {
     }
   };
 
-  //  check if the user already submitted a review for this product
   const checkUserReview = async () => {
     try {
       const uId = user?.id || user?.user_id;
-      if (!uId) {
+      if (!uId || !product?.customer_review) {
         setUserReviewed(false);
         return;
       }
 
-      const res = await api.get(`/reviews/check/${id}/${uId}`);
-      console.log("Check Review Response:", res.data);
-
-      if (res.data.hasReviewed) {
-        setUserReviewed(true);
-      } else {
-        setUserReviewed(false);
-      }
+      const hasReviewed = product.customer_review.some(r => String(r.user_id) === String(uId));
+      setUserReviewed(hasReviewed);
     } catch (err) {
       console.log("Review check error:", err);
       setUserReviewed(false);
@@ -391,10 +390,10 @@ const ProductDetails = () => {
   }, [id]);
 
   useEffect(() => {
-    if (user) {
+    if (user && product) {
       checkUserReview();
     }
-  }, [user, id]);
+  }, [user, product]);
 
   const displayImages = product ? getDisplayImages(product, selectedVariant) : [];
   const comboItems = getComboItems(product?.combo_items);
@@ -960,13 +959,13 @@ const ProductDetails = () => {
                       </div>
 
                       <p className="text-gray-600 leading-relaxed italic">
-                        "{review.comment}"
+                        "{review.review || review.comment}"
                       </p>
 
-                      {review.review_image && (
+                      {(review.review_image || review.image) && (
                         <div className="mt-4 overflow-hidden rounded-xl border border-gray-100 w-fit">
                           <img
-                            src={review.review_image}
+                            src={review.review_image || review.image}
                             alt="Review"
                             className="w-40 h-40 object-cover hover:scale-110 transition-transform duration-500"
                           />

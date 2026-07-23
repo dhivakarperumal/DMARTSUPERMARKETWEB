@@ -67,6 +67,7 @@ const createProductTable = async () => {
         rating              DECIMAL(3,1)  DEFAULT 5.0,
         review_count        INT           DEFAULT 0,
         combo_items         LONGTEXT      DEFAULT '[]',
+        customer_review     LONGTEXT      DEFAULT '[]',
         type                INT           DEFAULT 0,
         created_by          VARCHAR(36)   DEFAULT NULL,
         updated_by          VARCHAR(36)   DEFAULT NULL,
