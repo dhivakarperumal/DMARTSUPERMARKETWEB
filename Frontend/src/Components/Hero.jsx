@@ -56,72 +56,106 @@ export default function HeroSlider() {
         </div>
     );
 
+
     return (
-        <section className="w-full h-[80vh] md:h-screen overflow-hidden bg-slate-900 flex items-center justify-center">
+        <section className="w-full h-[80vh] md:h-screen overflow-hidden bg-slate-900">
             <Swiper
                 modules={[Autoplay, EffectFade, Pagination]}
                 effect="fade"
                 fadeEffect={{ crossFade: true }}
-                autoplay={{ delay: 5000, disableOnInteraction: false }}
-                
+                autoplay={{
+                    delay: 5000,
+                    disableOnInteraction: false,
+                }}
+                pagination={{ clickable: true }}
                 loop={slides.length > 1}
                 className="w-full h-full"
             >
                 {slides.map((slide, index) => (
                     <SwiperSlide key={index} className="!h-full">
-                        <div className="relative w-full h-full group">
-                            {/* Responsive Background Image */}
+                        <div className="relative w-full h-full overflow-hidden group">
+
+                            {/* Background Image */}
                             <picture className="absolute inset-0 w-full h-full">
-                                {slide.mobile_image && <source media="(max-width: 768px)" srcSet={slide.mobile_image} />}
+                                {slide.mobile_image && (
+                                    <source
+                                        media="(max-width:768px)"
+                                        srcSet={slide.mobile_image}
+                                    />
+                                )}
+
                                 <img
                                     src={slide.image}
                                     alt={slide.title}
-                                    className="w-full h-full object-cover transform scale-105 group-hover:scale-100 transition-transform duration-[10s]"
+                                    className="w-full h-full object-cover scale-110 blur-[2px] brightness-90 transition-all duration-[10000ms] group-hover:scale-105"
                                 />
                             </picture>
 
-                           
+                            {/* Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-black/15 to-transparent"></div>
 
-                            {/* Content Layer */}
-                            <div className="absolute inset-0 flex items-center">
-                                {/* <PageContainer>
-                                    <div className="text-white max-w-2xl px-4">
-                                        <div className="overflow-hidden mb-2">
-                                            <p className="text-xs md:text-sm tracking-[6px] md:tracking-[8px] uppercase text-amber-400 font-bold animate-in slide-in-from-left duration-700">
-                                                {slide.subtitle || "Premium Collection"}
-                                            </p>
-                                        </div>
+                            {/* Content */}
+                            <div className="absolute inset-0 flex items-center justify-center text-center">
+                                <PageContainer>
+                                    <div className="max-w-4xl mx-auto px-4">
 
-                                        <h1 className="text-4xl md:text-6xl font-serif font-light leading-[1.1] mb-6 animate-in slide-in-from-left duration-1000 delay-200">
+                                        <p className="mb-5 text-xs md:text-sm uppercase tracking-[8px] text-amber-400 font-semibold">
+                                            {slide.subtitle || "Premium Collection"}
+                                        </p>
+
+                                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-white leading-tight mb-6 drop-shadow-2xl">
                                             {slide.title}
                                         </h1>
 
                                         {slide.description && (
-                                            <p className="text-sm hidden md:block md:text-lg text-gray-300 mb-8 max-w-lg leading-relaxed animate-in slide-in-from-left duration-1000 delay-300 opacity-90">
+                                            <p className="text-gray-200 text-base md:text-xl leading-8 max-w-2xl mx-auto mb-10">
                                                 {slide.description}
                                             </p>
                                         )}
 
-                                        <div className="animate-in slide-in-from-bottom duration-1000 delay-500">
-                                            <Link 
+                                        <div className="flex justify-center">
+                                            <Link
                                                 to={slide.link || "/shop"}
-                                                className="inline-block px-6 md:px-12 py-4 border border-white/30 text-white tracking-[0.2em] font-black text-xs hover:bg-white hover:text-black hover:border-white transition-all duration-500 shadow-xl backdrop-blur-sm"
+                                                className="inline-flex items-center justify-center px-8 md:px-10 py-4 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold tracking-wide transition-all duration-300 hover:scale-105 shadow-xl"
                                             >
-                                                EXPLORE COLLECTION
+                                                Shop Now →
                                             </Link>
                                         </div>
+
                                     </div>
-                                </PageContainer> */}
+                                </PageContainer>
                             </div>
+
                         </div>
                     </SwiperSlide>
                 ))}
             </Swiper>
 
-            <style dangerouslySetInnerHTML={{ __html: `
-                .swiper-pagination-bullet { background: white !important; opacity: 0.5 !important; }
-                .swiper-pagination-bullet-active { background: #fbbf24 !important; opacity: 1 !important; width: 30px !important; border-radius: 4px !important; }
-            `}} />
+            <style
+                dangerouslySetInnerHTML={{
+                    __html: `
+                .swiper-pagination{
+                    bottom:30px !important;
+                }
+
+                .swiper-pagination-bullet{
+                    width:12px;
+                    height:12px;
+                    background:#ffffff !important;
+                    opacity:.5 !important;
+                    transition:all .3s ease;
+                }
+
+                .swiper-pagination-bullet-active{
+                    width:30px !important;
+                    border-radius:9999px;
+                    background:#fbbf24 !important;
+                    opacity:1 !important;
+                }
+            `,
+                }}
+            />
         </section>
+
     );
 }
