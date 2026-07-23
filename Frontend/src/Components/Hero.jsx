@@ -58,7 +58,7 @@ export default function HeroSlider() {
 
 
     return (
-        <section className="w-full h-[70vh] md:h-screen overflow-hidden bg-slate-900">
+        <section className="w-full h-[75vh] md:h-screen overflow-hidden bg-slate-900">
             <Swiper
                 modules={[Autoplay, EffectFade]}
                 effect="fade"
@@ -107,7 +107,7 @@ export default function HeroSlider() {
                                         </h1>
 
                                         {slide.description && (
-                                            <p className="hidden md:block text-gray-200 text-lg lg:text-xl leading-8 max-w-2xl mx-auto mb-10">
+                                            <p className="hidden md:block text-gray-200 text-lg lg:text-xl leading-10 max-w-2xl mx-auto mb-10">
                                                 {slide.description}
                                             </p>
                                         )}
