@@ -219,7 +219,7 @@ const ProductDetails = () => {
 
   const formatStockValue = (value) => {
     const parsed = parseStockNumber(value);
-    return Number.isInteger(parsed) ? String(parsed) : parsed.toFixed(3).replace(/\.0+$/, '') ;
+    return Number.isInteger(parsed) ? String(parsed) : parsed.toFixed(3).replace(/\.0+$/, '');
   };
 
   const getVariantUnitSize = (variant) => {
@@ -629,7 +629,7 @@ const ProductDetails = () => {
                       <div className="flex-1">
                         <p className="font-bold text-gray-800 text-sm">{item.name}</p>
                         {item.variant_info && (
-                           <p className="text-xs text-gray-500 font-semibold mt-0.5">{item.variant_info.weight} {item.variant_info.unit}</p>
+                          <p className="text-xs text-gray-500 font-semibold mt-0.5">{item.variant_info.weight} {item.variant_info.unit}</p>
                         )}
                         <div className="flex items-center gap-2 mt-1">
                           {item.offer_price > 0 || item.selling_price > 0 ? (
@@ -743,8 +743,8 @@ const ProductDetails = () => {
           ) : (
             <button
               onClick={() => setShowReviewForm(!showReviewForm)}
-              className="px-6 py-2 rounded-xl font-semibold text-white 
-    bg-gradient-to-r from-primary-light to-secondary 
+              className="px-6 py-2 rounded-xl font-semibold
+    bg-[#16a34a] text-white
     shadow-md hover:scale-105 transition cursor-pointer"
             >
               {showReviewForm ? "Hide Review Form" : "Write Review"}
@@ -820,7 +820,7 @@ const ProductDetails = () => {
 
             <button
               onClick={submitReview}
-              className="bg-gradient-to-r from-primary-light to-secondary text-white 
+              className="bg-[#16a34a] text-white 
   px-6 py-3 rounded-xl font-semibold shadow-md hover:scale-105 transition"
             >
               Submit Review
