@@ -58,7 +58,6 @@ const createProductTable = async () => {
         country_of_origin   VARCHAR(100)  DEFAULT '',
         supplier            VARCHAR(255)  DEFAULT '',
         product_images      LONGTEXT      DEFAULT '[]',
-        thumbnail_image     LONGTEXT      DEFAULT '',
         status              VARCHAR(50)   NOT NULL DEFAULT 'Active',
         featured_product    TINYINT(1)    NOT NULL DEFAULT 0,
         best_seller         TINYINT(1)    NOT NULL DEFAULT 0,

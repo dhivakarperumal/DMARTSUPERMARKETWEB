@@ -5,6 +5,19 @@ require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const db = require("./src/config/db");
 const als = require("./src/config/context");
+const { createCategoryTable, createProductTable } = require("./src/config/initDatabase");
+
+// ── Initialize DB tables once at startup (not on every request) ───────────
+(async () => {
+  try {
+    await createCategoryTable();
+    await createProductTable();
+    console.log("✅ Database tables initialized successfully");
+  } catch (err) {
+    console.error("❌ Database table initialization failed:", err.message || err);
+    // Do not crash the server; tables may already exist
+  }
+})();
 
 
 const app = express();

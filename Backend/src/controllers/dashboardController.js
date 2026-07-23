@@ -156,7 +156,7 @@ const getDashboard = async (req, res) => {
     // ────── GET TOP PRODUCTS FROM NON-CANCELLED ORDERS ──────
     try {
       const [topProdRows] = await connection.query(`
-        SELECT p.id, p.name, p.category, p.thumbnail_image, p.selling_price,
+        SELECT p.id, p.name, p.category, p.selling_price,
                SUM(oi.quantity) as total_sold, COUNT(DISTINCT oi.order_id) as order_count
         FROM order_items oi
         LEFT JOIN products p ON oi.product_id = p.id
@@ -168,7 +168,7 @@ const getDashboard = async (req, res) => {
       topProductsData = topProdRows.map(item => ({
         name: item.name || "Product",
         cat: item.category || "Uncategorized",
-        img: item.thumbnail_image || "",
+        img: "",
         rev: formatCurrency((item.selling_price || 0) * (item.total_sold || 0)),
         sales: item.total_sold || 0,
       }));
@@ -180,7 +180,7 @@ const getDashboard = async (req, res) => {
     // ────── GET PRODUCTS FOR LOW STOCK ALERTS ──────
     try {
       const [productRows] = await connection.query(
-        "SELECT id, name, category, thumbnail_image, selling_price, total_stock, stock_quantity, review_count FROM products ORDER BY review_count DESC"
+        "SELECT id, name, category, selling_price, total_stock, stock_quantity, review_count FROM products ORDER BY review_count DESC"
       );
       products = productRows;
 
@@ -203,7 +203,7 @@ const getDashboard = async (req, res) => {
       .slice(0, 4)
       .map((item) => ({
         name: item.name,
-        img: item.thumbnail_image || "",
+        img: "",
         cat: item.category || "Uncategorized",
         stock: item.total_stock ?? item.stock_quantity ?? 0,
         color: item.total_stock <= 2 || item.stock_quantity <= 2 ? "text-red-500" : "text-amber-500",

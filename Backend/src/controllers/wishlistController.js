@@ -16,14 +16,14 @@ const enrichWishlistItem = async (item, pool) => {
 
     if (productId) {
         const [rows] = await pool.query(
-            "SELECT id, name, thumbnail_image, product_images, mrp, offer_price, selling_price FROM products WHERE id = ?",
+            "SELECT id, name, product_images, mrp, offer_price, selling_price FROM products WHERE id = ?",
             [productId]
         );
         product = rows?.[0] || null;
     }
 
     const productImages = parseJsonField(product?.product_images);
-    const fallbackImage = product?.thumbnail_image || productImages?.[0] || item.image || null;
+    const fallbackImage = productImages?.[0] || item.image || null;
 
     return {
         ...item,

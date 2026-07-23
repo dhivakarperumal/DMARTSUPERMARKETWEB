@@ -16,11 +16,15 @@ import { toast, Toaster } from "react-hot-toast";
 import imageCompression from "browser-image-compression";
 import Barcode from "react-barcode";
 import { uploadFiles } from "../../utils/uploadService";
+import { useAdmin } from "../../PrivateRouter/AdminContext";
+
 
 const AddProducts = () => {
   const { id } = useParams();
   const isEdit = !!id;
   const navigate = useNavigate();
+  const { invalidateCache } = useAdmin();
+
 
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -60,7 +64,6 @@ const AddProducts = () => {
     country_of_origin: "",
     supplier: "",
     product_images: [],
-    thumbnail_image: "",
     status: "Active",
     featured_product: "No",
     best_seller: "No",
@@ -201,7 +204,6 @@ const AddProducts = () => {
             product_images: Array.isArray(p.product_images)
               ? p.product_images
               : [],
-            thumbnail_image: p.thumbnail_image || "",
             status: p.status || "Active",
             featured_product: p.featured_product ? "Yes" : "No",
             best_seller: p.best_seller ? "Yes" : "No",
@@ -420,28 +422,6 @@ const AddProducts = () => {
     }
   };
 
-  const handleThumbnailUpload = async (e) => {
-    try {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const options = {
-        maxSizeMB: 0.1,
-        maxWidthOrHeight: 800,
-        useWebWorker: true,
-      };
-      const compressed = await imageCompression(file, options);
-      const fileToUpload = new File([compressed], file.name || 'thumbnail.jpg', { type: compressed.type });
-      
-      const urls = await uploadFiles([fileToUpload], "products");
-      if (urls && urls.length > 0) {
-        setFormData((prev) => ({ ...prev, thumbnail_image: urls[0] }));
-      }
-    } catch (error) {
-      console.error("Thumbnail upload error:", error);
-      toast.error("Thumbnail upload failed.");
-    }
-  };
-
   const handleBarcodeUpload = async (e) => {
     try {
       const file = e.target.files?.[0];
@@ -544,6 +524,10 @@ const AddProducts = () => {
         await api.post("/products", finalData);
         toast.success("Product added successfully.");
       }
+
+      // Clear the in-memory products cache so AllProducts always shows
+      // fresh data (including the newly saved product_images) immediately.
+      invalidateCache('products');
 
       setTimeout(() => navigate("/admin/products/all"), 1500);
     } catch (error) {
@@ -877,40 +861,7 @@ const AddProducts = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
-              {/* Thumbnail */}
-              <div className="space-y-3">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                  Thumbnail Image
-                </label>
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-teal-200 rounded-2xl h-32 cursor-pointer hover:border-teal-400 hover:bg-teal-50/40 transition-colors group">
-                  <FiUploadCloud size={20} className="text-teal-400 group-hover:text-teal-600 transition-colors" />
-                  <span className="mt-2 text-xs font-semibold text-slate-600">
-                    Upload thumbnail
-                  </span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleThumbnailUpload}
-                  />
-                </label>
-                {formData.thumbnail_image && (
-                  <div className="relative group">
-                    <img
-                      src={formData.thumbnail_image}
-                      alt="Thumbnail"
-                      className="h-32 w-full object-cover rounded-2xl shadow-sm border border-gray-100"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({...prev, thumbnail_image: ""}))}
-                      className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <FiTrash2 size={20} />
-                    </button>
-                  </div>
-                )}
-              </div>
+
 
               {/* Barcode Image */}
               <div className="space-y-3">

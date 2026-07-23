@@ -1,12 +1,45 @@
 const { getPool } = require("../config/db");
-const { createProductTable } = require("../config/initDatabase");
 const crypto = require("crypto");
 
+/**
+ * Safely parse a JSON field from the database.
+ * - Handles NULL, undefined, empty string → returns []
+ * - Handles Buffer objects (returned by some MySQL driver configurations)
+ * - Handles double-encoded JSON (string-inside-JSON → parses twice)
+ * - Logs a warning if parsing fails so errors are never silently swallowed
+ */
 const parseJsonField = (value) => {
-  if (!value) return [];
+  if (value === null || value === undefined || value === '') return [];
+
+  // mysql2 can return LONGTEXT as a Buffer when charset is misconfigured
+  const strValue = Buffer.isBuffer(value) ? value.toString('utf8') : String(value);
+
+  if (strValue.trim() === '' || strValue.trim() === 'null') return [];
+
   try {
-    return JSON.parse(value);
+    const parsed = JSON.parse(strValue);
+
+    // Handle double-encoded JSON: '["url"]' stored as '"[\"url\"]"'
+    if (typeof parsed === 'string') {
+      try {
+        const doubleParsed = JSON.parse(parsed);
+        if (Array.isArray(doubleParsed)) return doubleParsed;
+        console.warn('[parseJsonField] Double-parsed value is not an array:', doubleParsed);
+        return [];
+      } catch {
+        console.warn('[parseJsonField] Double-encoded JSON parse failed. Raw:', strValue.substring(0, 200));
+        return [];
+      }
+    }
+
+    if (!Array.isArray(parsed)) {
+      console.warn('[parseJsonField] Parsed value is not an array:', typeof parsed, '| Raw:', strValue.substring(0, 200));
+      return [];
+    }
+
+    return parsed;
   } catch (error) {
+    console.error('[parseJsonField] JSON.parse failed:', error.message, '| Raw value:', strValue.substring(0, 200));
     return [];
   }
 };
@@ -38,8 +71,6 @@ const createProduct = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
-
       let finalCategoryId = data.category_id || null;
       if (!finalCategoryId && data.category) {
         try {
@@ -60,10 +91,10 @@ const createProduct = async (req, res) => {
         `INSERT INTO products (
           product_id, name, product_code, barcode, barcode_image, category, category_id, subcategory, brand, description,
           mrp, selling_price, offer, offer_price, stock_quantity, pricing_options, total_stock,
-          expiry_date, manufacturing_date, country_of_origin, supplier, product_images, thumbnail_image,
+          expiry_date, manufacturing_date, country_of_origin, supplier, product_images,
           status, featured_product, best_seller, todays_deal, delivery_time, return_available, rating, review_count, combo_items, type,
           created_by, updated_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           product_id,
           data.name,
@@ -87,7 +118,6 @@ const createProduct = async (req, res) => {
           data.country_of_origin || "",
           data.supplier || "",
           JSON.stringify(Array.isArray(data.product_images) ? data.product_images : []),
-          data.thumbnail_image || "",
           data.status || 'Active',
           data.featured_product || false,
           data.best_seller || false,
@@ -132,7 +162,6 @@ const getProducts = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
       const [rows] = await connection.execute(
         "SELECT * FROM products ORDER BY created_at DESC"
       );
@@ -171,7 +200,6 @@ const getLatestCode = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
       const [rows] = await connection.execute(
         "SELECT product_code FROM products WHERE product_code IS NOT NULL AND product_code != ''"
       );
@@ -214,7 +242,6 @@ const getProduct = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
       const [rows] = await connection.execute(
         "SELECT * FROM products WHERE id = ?",
         [id]
@@ -264,7 +291,6 @@ const updateProduct = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
       const [existingRows] = await connection.execute(
         "SELECT * FROM products WHERE id = ?",
         [id]
@@ -295,7 +321,7 @@ const updateProduct = async (req, res) => {
         `UPDATE products SET 
           name = ?, product_code = ?, barcode = ?, barcode_image = ?, category = ?, category_id = ?, subcategory = ?, brand = ?, description = ?,
           mrp = ?, selling_price = ?, offer = ?, offer_price = ?, stock_quantity = ?, pricing_options = ?, total_stock = ?,
-          expiry_date = ?, manufacturing_date = ?, country_of_origin = ?, supplier = ?, product_images = ?, thumbnail_image = ?,
+          expiry_date = ?, manufacturing_date = ?, country_of_origin = ?, supplier = ?, product_images = ?,
           status = ?, featured_product = ?, best_seller = ?, todays_deal = ?, delivery_time = ?, return_available = ?, rating = ?, review_count = ?, combo_items = ?, type = ?,
           updated_by = ?, updated_at = NOW() 
         WHERE id = ?`,
@@ -321,7 +347,6 @@ const updateProduct = async (req, res) => {
           data.country_of_origin || "",
           data.supplier || "",
           JSON.stringify(Array.isArray(data.product_images) ? data.product_images : parseJsonField(existingRows[0].product_images)),
-          data.thumbnail_image || existingRows[0].thumbnail_image,
           data.status || 'Active',
           data.featured_product || false,
           data.best_seller || false,
@@ -366,7 +391,6 @@ const deleteProduct = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
       const [result] = await connection.execute(
         "DELETE FROM products WHERE id = ?",
         [id]

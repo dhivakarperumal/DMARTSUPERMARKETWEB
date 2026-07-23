@@ -10,8 +10,8 @@ export default defineConfig({
     port: 5173, // ensure consistent port for proxying
     proxy: {
       "/api": {
-        target: "http://localhost:5000",
-        // target: "https://dmart.qtechx.com",
+        // target: "http://localhost:5000",
+        target: "https://dmart.qtechx.com",
         changeOrigin: true,
         secure: false,
       },
