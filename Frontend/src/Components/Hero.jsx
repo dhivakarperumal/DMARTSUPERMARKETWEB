@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Autoplay, EffectFade, Pagination } from "swiper/modules";
+import { Autoplay, EffectFade } from "swiper/modules";
 import api from "../api";
 import { Link } from "react-router-dom";
 import { useContext } from "react";
@@ -58,16 +58,15 @@ export default function HeroSlider() {
 
 
     return (
-        <section className="w-full h-[80vh] md:h-screen overflow-hidden bg-slate-900">
+        <section className="w-full h-[70vh] md:h-screen overflow-hidden bg-slate-900">
             <Swiper
-                modules={[Autoplay, EffectFade, Pagination]}
+                modules={[Autoplay, EffectFade]}
                 effect="fade"
                 fadeEffect={{ crossFade: true }}
                 autoplay={{
                     delay: 5000,
                     disableOnInteraction: false,
                 }}
-                pagination={{ clickable: true }}
                 loop={slides.length > 1}
                 className="w-full h-full"
             >
@@ -99,16 +98,16 @@ export default function HeroSlider() {
                                 <PageContainer>
                                     <div className="max-w-4xl mx-auto px-4">
 
-                                        <p className="mb-5 text-xs md:text-sm uppercase tracking-[8px] text-amber-400 font-semibold">
+                                        <p className="mb-4 text-[10px] sm:text-xs md:text-sm uppercase tracking-[4px] md:tracking-[8px] text-amber-400 font-semibold">
                                             {slide.subtitle || "Premium Collection"}
                                         </p>
 
-                                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold text-white leading-tight mb-6 drop-shadow-2xl">
+                                        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-serif font-bold text-white leading-tight mb-4 md:mb-6 drop-shadow-2xl">
                                             {slide.title}
                                         </h1>
 
                                         {slide.description && (
-                                            <p className="text-gray-200 text-base md:text-xl leading-8 max-w-2xl mx-auto mb-10">
+                                            <p className="hidden md:block text-gray-200 text-lg lg:text-xl leading-8 max-w-2xl mx-auto mb-10">
                                                 {slide.description}
                                             </p>
                                         )}
@@ -116,7 +115,7 @@ export default function HeroSlider() {
                                         <div className="flex justify-center">
                                             <Link
                                                 to={slide.link || "/shop"}
-                                                className="inline-flex items-center justify-center px-8 md:px-10 py-4 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold tracking-wide transition-all duration-300 hover:scale-105 shadow-xl"
+                                                className="inline-flex items-center justify-center px-5 py-2.5 md:px-10 md:py-4 rounded-lg md:rounded-xl bg-green-600 hover:bg-green-700 text-sm md:text-base text-white font-semibold tracking-wide transition-all duration-300 hover:scale-105 shadow-xl"
                                             >
                                                 Shop Now →
                                             </Link>
@@ -131,30 +130,7 @@ export default function HeroSlider() {
                 ))}
             </Swiper>
 
-            <style
-                dangerouslySetInnerHTML={{
-                    __html: `
-                .swiper-pagination{
-                    bottom:30px !important;
-                }
 
-                .swiper-pagination-bullet{
-                    width:12px;
-                    height:12px;
-                    background:#ffffff !important;
-                    opacity:.5 !important;
-                    transition:all .3s ease;
-                }
-
-                .swiper-pagination-bullet-active{
-                    width:30px !important;
-                    border-radius:9999px;
-                    background:#fbbf24 !important;
-                    opacity:1 !important;
-                }
-            `,
-                }}
-            />
         </section>
 
     );
