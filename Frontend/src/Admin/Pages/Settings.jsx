@@ -300,8 +300,8 @@ const Settings = () => {
       const file = e.target.files?.[0];
       if (!file) return;
       const options = {
-        maxSizeMB: 0.1,
-        maxWidthOrHeight: 800,
+        maxSizeMB: 4,
+        maxWidthOrHeight: 2000,
         useWebWorker: true,
       };
       const compressed = await imageCompression(file, options);
@@ -358,7 +358,7 @@ const Settings = () => {
     try {
       const file = e.target.files?.[0];
       if (!file) return;
-      const options = { maxSizeMB: 0.2, maxWidthOrHeight: 800, useWebWorker: true };
+      const options = { maxSizeMB: 4, maxWidthOrHeight: 2000, useWebWorker: true };
       const compressed = await imageCompression(file, options);
       const base64 = await imageCompression.getDataUrlFromFile(compressed);
       setStoreSettings(prev => ({ ...prev, storeLogo: base64 }));

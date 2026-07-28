@@ -11,7 +11,7 @@ import {
 } from "react-icons/fi";
 import { FaRupeeSign } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
-import api from "../../api";
+import api, { getFileUrl } from "../../api";
 import { toast, Toaster } from "react-hot-toast";
 import imageCompression from "browser-image-compression";
 import { compressAndUpload } from "../../utils/uploadService";
@@ -389,8 +389,8 @@ const AddCombo = () => {
       }
 
       const urls = await compressAndUpload(files, "products", {
-        maxSizeMB: 0.1,
-        maxWidthOrHeight: 800,
+        maxSizeMB: 6,
+        maxWidthOrHeight: 3000,
       });
 
       if (urls.length > 0) {
@@ -733,7 +733,7 @@ const AddCombo = () => {
                             mrp: selectedProduct.mrp || 0,
                             selling_price: selectedProduct.selling_price || 0,
                             offer_price: selectedProduct.offer_price || 0,
-                            image: selectedProduct.thumbnail_image || (Array.isArray(selectedProduct.product_images) && selectedProduct.product_images[0]) || "",
+                            image: (Array.isArray(selectedProduct.product_images) && selectedProduct.product_images[0]) || "",
                             variant_info: {
                                 weight: selectedProduct.weight_volume || "1",
                                 unit: selectedProduct.unit || "kg"
@@ -961,9 +961,10 @@ const AddCombo = () => {
                   {formData.product_images.map((img, index) => (
                     <div key={index} className="relative group aspect-square">
                       <img
-                        src={img}
+                        src={getFileUrl(img) || img}
                         alt={`Product ${index + 1}`}
                         className="w-full h-full object-cover rounded-2xl shadow-sm border border-gray-100"
+                        onError={(e) => { e.target.onerror = null; e.target.src = "/placeholder.png"; }}
                       />
                       <button
                         type="button"
@@ -999,7 +1000,7 @@ const AddCombo = () => {
                 {formData.thumbnail_image && (
                   <div className="relative group">
                     <img
-                      src={formData.thumbnail_image}
+                      src={getFileUrl(formData.thumbnail_image) || formData.thumbnail_image}
                       alt="Thumbnail"
                       className="h-32 w-full object-cover rounded-2xl shadow-sm border border-gray-100"
                     />

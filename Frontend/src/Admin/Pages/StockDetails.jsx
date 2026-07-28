@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { createPortal } from "react-dom";
 import { useAdmin } from "../../PrivateRouter/AdminContext";
-import api from "../../api";
+import api, { getFileUrl } from "../../api";
 import { toast, Toaster } from "react-hot-toast";
 import {
     FiBox,
@@ -121,18 +121,12 @@ const StockDetails = () => {
     const getProductImage = (product) => {
         let imgUrl = null;
         try {
-            const processUrl = (url) => {
-                if (!url || typeof url !== 'string') return null;
-                if (url.startsWith('http') || url.startsWith('data:')) return url;
-                const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-                const cleanPath = url.startsWith('/') ? url : `/${url}`;
-                return `${backendUrl}${cleanPath}`;
-            };
+            // Use getFileUrl to resolve filesystem or relative upload paths
             if (product.product_images) {
                 const imgs = typeof product.product_images === 'string' ? JSON.parse(product.product_images) : product.product_images;
                 if (Array.isArray(imgs) && imgs.length > 0) imgUrl = imgs[0];
             }
-            const finalUrl = processUrl(imgUrl);
+            const finalUrl = getFileUrl(imgUrl);
             if (finalUrl) return finalUrl;
         } catch (e) {
             console.error("Error getting product image:", e);

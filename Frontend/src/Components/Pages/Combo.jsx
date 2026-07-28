@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import { ShoppingCart, Heart, Tag, Star, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
-import api from "../../api";
+import api, { getFileUrl, getProductImageUrl } from "../../api";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
 import PageHeader from "../CommenComponents/PageHeader";
 import PageContainer from "../CommenComponents/PageContainer";
@@ -9,17 +9,8 @@ import { useNavigate } from "react-router-dom";
 import QuickViewModal from "../Products/QuickModel";
 import AnimatedButton from "../AnimatedButton";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-
 const resolveImage = (url) => {
-  if (!url || typeof url !== "string") return null;
-  const trimmed = url.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith("http") || trimmed.startsWith("data:")) return trimmed;
-  const cleanPath = trimmed.replace(/\\/g, "/");
-  return cleanPath.startsWith("/")
-    ? `${BACKEND_URL}${cleanPath}`
-    : `${BACKEND_URL}/${cleanPath}`;
+  return getFileUrl(url);
 };
 
 const normalizeImages = (value) => {
@@ -40,27 +31,17 @@ const normalizeImages = (value) => {
 };
 
 const getImage = (product) => {
-  const candidates = [
-    product.product_images,
-    product.images,
-    product.image,
-    product.image_url,
-  ];
-  for (const candidate of candidates) {
-    const list = normalizeImages(candidate);
-    if (list.length > 0) {
-      const resolved = resolveImage(list[0]);
-      if (resolved) return resolved;
-    }
-  }
-  // variant images fallback
+  const resolved = getProductImageUrl(product);
+  if (resolved) return resolved;
+
   if (product.variants?.length > 0) {
     const variantImgs = normalizeImages(product.variants[0]?.images);
     if (variantImgs.length > 0) {
-      const resolved = resolveImage(variantImgs[0]);
-      if (resolved) return resolved;
+      const resolvedVariant = resolveImage(variantImgs[0]);
+      if (resolvedVariant) return resolvedVariant;
     }
   }
+
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(
     product.name || "Combo"
   )}&background=d1fae5&color=065f46&size=400`;

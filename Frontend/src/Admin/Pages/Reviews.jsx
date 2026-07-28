@@ -151,8 +151,8 @@ const Reviews = () => {
     const file = e.target.files[0]; if (!file) return;
     try {
       const urls = await compressAndUpload([file], "reviews", {
-        maxSizeMB: 0.3,
-        maxWidthOrHeight: 800,
+        maxSizeMB: 5,
+        maxWidthOrHeight: 2000,
       });
       if (urls.length > 0) {
         setNewReview(p => ({ ...p, review_image: urls[0] }));

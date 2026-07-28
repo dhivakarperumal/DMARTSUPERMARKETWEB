@@ -236,8 +236,8 @@ const AddEditStaff = () => {
 
       if (isImage) {
         const urls = await compressAndUpload([file], "staff", {
-          maxSizeMB: 0.6,
-          maxWidthOrHeight: 1024,
+          maxSizeMB: 5,
+          maxWidthOrHeight: 2000,
         });
         if (urls.length > 0) {
           setForm((prev) => ({ ...prev, [field]: urls[0] }));

@@ -1,5 +1,6 @@
 import React, { useState, useContext, useEffect } from "react";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
+import { getFileUrl } from "../../api";
 import {
   FiHeart,
   FiShoppingCart,
@@ -16,27 +17,7 @@ const QuickViewModal = ({ product, onClose }) => {
 
 
 
-  const resolveImage = (img) => {
-    if (!img || typeof img !== "string") return null;
-
-    const trimmed = img.trim();
-
-    if (!trimmed) return null;
-
-    if (trimmed.startsWith("http") || trimmed.startsWith("data:"))
-      return trimmed;
-
-    const backendUrl =
-      import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-
-    const cleanPath = trimmed.replace(/\\/g, "/");
-
-    const finalPath = cleanPath.startsWith("/")
-      ? cleanPath
-      : `/${cleanPath}`;
-
-    return `${backendUrl}${finalPath}`;
-  };
+  const resolveImage = (img) => getFileUrl(img);
 
   const normalizeImageList = (value) => {
     if (!value) return [];
@@ -118,6 +99,9 @@ const QuickViewModal = ({ product, onClose }) => {
 
   const imageCandidates = [
     selectedVariant?.images,
+    product?.thumbnail_image,
+    product?.thumbnail,
+    product?.thumbnailImage,
     product?.product_images,
     product?.images,
     product?.image,

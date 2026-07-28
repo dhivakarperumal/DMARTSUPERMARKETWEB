@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect } from "react";
 import { FiShoppingCart, FiTrash2, FiPlus, FiMinus } from "react-icons/fi";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
 import { useNavigate } from "react-router-dom";
+import { getFileUrl, getProductImageUrl } from "../../api";
 import PageHeader from "../CommenComponents/PageHeader";
 import PageContainer from "../CommenComponents/PageContainer";
 import { toast } from "react-hot-toast";
@@ -80,9 +81,9 @@ export default function CartPage() {
                 ) : (
                   cart.map((item, index) => {
                     const name = item.name || item.product_name || item.productName || "Product";
-                    const image = item.image || item.product_image || (Array.isArray(item.product_images) && item.product_images[0]) || (typeof item.product_images === 'string' && JSON.parse(item.product_images)?.[0]) || "/placeholder.png";
-                    const price = item.price;
-                    const mrp = item.mrp;
+                    const image = getProductImageUrl(item) || getFileUrl(item.image) || getFileUrl(item.product_image) || "/placeholder.png";
+                    const price = parseFloat(item.price || item.offer_price || item.selling_price || item.mrp || 0);
+                    const mrp = parseFloat(item.mrp || item.offer_price || item.selling_price || 0);
 
                     return (
                       <div

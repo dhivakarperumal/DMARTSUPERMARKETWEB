@@ -5,7 +5,7 @@ import {
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
-import api from "../../api";
+import api, { getFileUrl } from "../../api";
 import { toast } from "react-hot-toast";
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -330,12 +330,9 @@ const CreateBilling = () => {
                 if (Array.isArray(images) && images.length > 0) imgUrl = images[0];
             }
 
-            if (!imgUrl) return `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name || 'P')}&background=random`;
-            if (imgUrl.startsWith('http') || imgUrl.startsWith('data:')) return imgUrl;
-
-            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-            const cleanPath = imgUrl.startsWith('/') ? imgUrl : `/${imgUrl}`;
-            return `${backendUrl}${cleanPath}`;
+            const finalUrl = getFileUrl(imgUrl);
+            if (finalUrl) return finalUrl;
+            return `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name || 'P')}&background=random`;
         } catch (e) {
             return `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name || 'P')}&background=random`;
         }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../api";
+import api, { getProductImageUrl } from "../../api";
 import "./ChatBot.css";
 
 // ─── Intent Detection ────────────────────────────────────────────────────────
@@ -79,8 +79,9 @@ function getOrderStatusColor(status) {
 }
 
 function getProductImage(product) {
+  const url = getProductImageUrl(product);
+  if (url) return url;
   if (product?.variants?.[0]?.images?.[0]) return product.variants[0].images[0];
-  if (product?.images?.[0]) return product.images[0];
   return null;
 }
 

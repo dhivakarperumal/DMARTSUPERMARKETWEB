@@ -11,7 +11,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import "swiper/css";
 import PageContainer from "../CommenComponents/PageContainer";
-import api from "../../api";
+import api, { getFileUrl } from "../../api";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
 import { useContext } from "react";
 
@@ -29,14 +29,7 @@ export default function VideoSwiper() {
   return match ? match[1] : url;
 };
 
-  const resolveMediaUrl = (url) => {
-    if (!url || typeof url !== 'string') return null;
-    if (url.startsWith('http') || url.startsWith('data:')) return url;
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-    const cleanPath = url.replace(/\\/g, '/');
-    const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
-    return `${backendUrl}${finalPath}`;
-  };
+    const resolveMediaUrl = (url) => getFileUrl(url);
 
   useEffect(() => {
     const fetchVideos = async () => {

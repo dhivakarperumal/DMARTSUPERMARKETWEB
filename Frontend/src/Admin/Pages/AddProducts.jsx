@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   FiArrowLeft,
   FiSave,
@@ -11,20 +11,25 @@ import {
 } from "react-icons/fi";
 import { FaRupeeSign } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
-import api from "../../api";
+import api, { getFileUrl, normalizeImageList } from "../../api";
 import { toast, Toaster } from "react-hot-toast";
 import imageCompression from "browser-image-compression";
+import { compressAndUpload } from "../../utils/uploadService";
 import Barcode from "react-barcode";
-import { uploadFiles } from "../../utils/uploadService";
+import { useAdmin } from "../../PrivateRouter/AdminContext";
+import { StoreContext } from "../../PrivateRouter/StoreContext";
 
 const AddProducts = () => {
   const { id } = useParams();
   const isEdit = !!id;
   const navigate = useNavigate();
+  const { invalidateCache } = useAdmin();
+  const { setProductsCache: setStoreProductsCache, setLastFetchTime } = useContext(StoreContext);
 
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(isEdit);
+  const [existingProductImages, setExistingProductImages] = useState([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -60,7 +65,6 @@ const AddProducts = () => {
     country_of_origin: "",
     supplier: "",
     product_images: [],
-    thumbnail_image: "",
     status: "Active",
     featured_product: "No",
     best_seller: "No",
@@ -85,7 +89,6 @@ const AddProducts = () => {
 
   const generateProductCode = (code) => {
     const normalized = String(code || "")
-      .trim()
       .toUpperCase();
     
     // If already in SPM001 format and valid, return as-is
@@ -166,6 +169,32 @@ const AddProducts = () => {
           setCategories(Array.isArray(catRes.data) ? catRes.data : []);
 
           const p = editRes.data;
+          const resolvedProductImages = (function(){
+            try {
+              const candidates = [
+                p.product_images,
+                p.thumbnail_image,
+                p.thumbnail,
+                p.image,
+                p.image_url,
+                p.product_image,
+                p.images,
+                p.featured_image,
+              ];
+
+              return Array.from(new Set(
+                candidates
+                  .flatMap((candidate) => normalizeImageList(candidate))
+                  .map((u) => getFileUrl(u))
+                  .filter(Boolean)
+              ));
+            } catch {
+              return [];
+            }
+          })();
+
+          setExistingProductImages(resolvedProductImages);
+
           setFormData((prev) => ({
             ...prev,
             name: p.name || "",
@@ -198,10 +227,7 @@ const AddProducts = () => {
             manufacturing_date: p.manufacturing_date || "",
             country_of_origin: p.country_of_origin || "",
             supplier: p.supplier || "",
-            product_images: Array.isArray(p.product_images)
-              ? p.product_images
-              : [],
-            thumbnail_image: p.thumbnail_image || "",
+            product_images: resolvedProductImages,
             status: p.status || "Active",
             featured_product: p.featured_product ? "Yes" : "No",
             best_seller: p.best_seller ? "Yes" : "No",
@@ -385,60 +411,48 @@ const AddProducts = () => {
     });
   };
 
+  const getImagePreviewUrl = (value) => getFileUrl(value, { cacheBust: true }) || value;
+
+  const previewProductImages =
+    Array.isArray(formData.product_images) && formData.product_images.length > 0
+      ? formData.product_images
+      : existingProductImages;
+
+  const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
   const handleMultipleImageUpload = async (e) => {
     try {
       const files = Array.from(e.target.files || []);
       if (!files.length) return;
-      if ((formData.product_images?.length || 0) + files.length > 8) {
+      if (files.length > 8) {
         toast.error("Maximum 8 product images allowed.");
         return;
       }
 
-      const compressedFiles = await Promise.all(
-        files.map(async (file) => {
-          const options = {
-            maxSizeMB: 0.1,
-            maxWidthOrHeight: 800,
-            useWebWorker: true,
-          };
-          return await imageCompression(file, options);
-        }),
-      );
-
-      const filesToUpload = compressedFiles.map((blob, i) => new File([blob], files[i].name || `image_${i}.jpg`, { type: blob.type }));
-      const urls = await uploadFiles(filesToUpload, "products");
+      const urls = await compressAndUpload(files, "products", {
+        maxSizeMB: 6,
+        maxWidthOrHeight: 3000,
+        useWebWorker: true,
+      });
 
       if (urls.length > 0) {
         setFormData((prev) => ({
           ...prev,
-          product_images: [...(prev.product_images || []), ...urls],
+          product_images: [
+            ...((prev.product_images || []).filter(Boolean) || []),
+            ...urls,
+          ],
         }));
+        toast.success("Product images uploaded successfully.");
       }
     } catch (error) {
       console.error("Image upload error:", error);
       toast.error("Image upload failed.");
-    }
-  };
-
-  const handleThumbnailUpload = async (e) => {
-    try {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const options = {
-        maxSizeMB: 0.1,
-        maxWidthOrHeight: 800,
-        useWebWorker: true,
-      };
-      const compressed = await imageCompression(file, options);
-      const fileToUpload = new File([compressed], file.name || 'thumbnail.jpg', { type: compressed.type });
-      
-      const urls = await uploadFiles([fileToUpload], "products");
-      if (urls && urls.length > 0) {
-        setFormData((prev) => ({ ...prev, thumbnail_image: urls[0] }));
-      }
-    } catch (error) {
-      console.error("Thumbnail upload error:", error);
-      toast.error("Thumbnail upload failed.");
     }
   };
 
@@ -454,9 +468,9 @@ const AddProducts = () => {
       const compressed = await imageCompression(file, options);
       const fileToUpload = new File([compressed], file.name || 'barcode.jpg', { type: compressed.type });
       
-      const urls = await uploadFiles([fileToUpload], "products");
-      if (urls && urls.length > 0) {
-        setFormData((prev) => ({ ...prev, barcode_image: urls[0] }));
+      const dataUrl = await fileToDataUrl(fileToUpload);
+      if (dataUrl) {
+        setFormData((prev) => ({ ...prev, barcode_image: dataUrl }));
       }
     } catch (error) {
       console.error("Barcode upload error:", error);
@@ -465,12 +479,26 @@ const AddProducts = () => {
   };
 
   const removeProductImage = (imgIndex) => {
-    setFormData((prev) => ({
-      ...prev,
-      product_images: prev.product_images.filter(
-        (_, index) => index !== imgIndex,
-      ),
-    }));
+    if (Array.isArray(formData.product_images) && formData.product_images.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        product_images: prev.product_images.filter(
+          (_, index) => index !== imgIndex,
+        ),
+      }));
+      return;
+    }
+
+    setExistingProductImages((prev) =>
+      prev.filter((_, index) => index !== imgIndex),
+    );
+  };
+
+  const refreshProductCaches = () => {
+    invalidateCache("products");
+    invalidateCache("all");
+    setStoreProductsCache([]);
+    setLastFetchTime(0);
   };
 
   const handleSubmit = async (e) => {
@@ -487,8 +515,14 @@ const AddProducts = () => {
     setLoading(true);
     try {
       const selectedCategory = categories.find(c => c.name === formData.category);
+      const finalProductImages =
+        isEdit && Array.isArray(formData.product_images) && formData.product_images.length === 0 && existingProductImages.length > 0
+          ? existingProductImages
+          : formData.product_images;
+
       const finalData = {
         ...formData,
+        product_images: finalProductImages,
         type: 0,
         category: formData.category || "General",
         category_id: selectedCategory ? selectedCategory.id : null,
@@ -545,6 +579,7 @@ const AddProducts = () => {
         toast.success("Product added successfully.");
       }
 
+      refreshProductCaches();
       setTimeout(() => navigate("/admin/products/all"), 1500);
     } catch (error) {
       console.error("Submit error:", error);
@@ -854,12 +889,12 @@ const AddProducts = () => {
                   onChange={handleMultipleImageUpload}
                 />
               </label>
-              {formData.product_images?.length > 0 && (
+              {previewProductImages?.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 mt-4">
-                  {formData.product_images.map((img, index) => (
+                  {previewProductImages.map((img, index) => (
                     <div key={index} className="relative group aspect-square">
                       <img
-                        src={img}
+                        src={getImagePreviewUrl(img)}
                         alt={`Product ${index + 1}`}
                         className="w-full h-full object-cover rounded-2xl shadow-sm border border-gray-100"
                       />
@@ -876,42 +911,7 @@ const AddProducts = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
-              {/* Thumbnail */}
-              <div className="space-y-3">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                  Thumbnail Image
-                </label>
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-teal-200 rounded-2xl h-32 cursor-pointer hover:border-teal-400 hover:bg-teal-50/40 transition-colors group">
-                  <FiUploadCloud size={20} className="text-teal-400 group-hover:text-teal-600 transition-colors" />
-                  <span className="mt-2 text-xs font-semibold text-slate-600">
-                    Upload thumbnail
-                  </span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleThumbnailUpload}
-                  />
-                </label>
-                {formData.thumbnail_image && (
-                  <div className="relative group">
-                    <img
-                      src={formData.thumbnail_image}
-                      alt="Thumbnail"
-                      className="h-32 w-full object-cover rounded-2xl shadow-sm border border-gray-100"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({...prev, thumbnail_image: ""}))}
-                      className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <FiTrash2 size={20} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
+            <div className="pt-4 border-t border-gray-100">
               {/* Barcode Image */}
               <div className="space-y-3">
                 <label className="text-xs font-black text-gray-400 uppercase tracking-widest">
@@ -932,7 +932,7 @@ const AddProducts = () => {
                 {formData.barcode_image && (
                   <div className="relative group">
                     <img
-                      src={formData.barcode_image}
+                      src={getImagePreviewUrl(formData.barcode_image)}
                       alt="Barcode"
                       className="h-32 w-full object-contain rounded-2xl shadow-sm border border-gray-100 bg-white"
                     />

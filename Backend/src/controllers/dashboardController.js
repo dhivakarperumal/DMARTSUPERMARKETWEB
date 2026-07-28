@@ -1,5 +1,15 @@
 const { getPool } = require("../config/db");
 
+const parseJsonField = (value) => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 const formatCurrency = (value) => {
   const number = Number(value || 0);
   return `₹${number.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -156,7 +166,7 @@ const getDashboard = async (req, res) => {
     // ────── GET TOP PRODUCTS FROM NON-CANCELLED ORDERS ──────
     try {
       const [topProdRows] = await connection.query(`
-        SELECT p.id, p.name, p.category, p.thumbnail_image, p.selling_price,
+        SELECT p.id, p.name, p.category, p.thumbnail_image, p.product_images, p.selling_price,
                SUM(oi.quantity) as total_sold, COUNT(DISTINCT oi.order_id) as order_count
         FROM order_items oi
         LEFT JOIN products p ON oi.product_id = p.id
@@ -165,13 +175,16 @@ const getDashboard = async (req, res) => {
         ORDER BY total_sold DESC
         LIMIT 5
       `);
-      topProductsData = topProdRows.map(item => ({
-        name: item.name || "Product",
-        cat: item.category || "Uncategorized",
-        img: item.thumbnail_image || "",
-        rev: formatCurrency((item.selling_price || 0) * (item.total_sold || 0)),
-        sales: item.total_sold || 0,
-      }));
+      topProductsData = topProdRows.map(item => {
+        const productImages = parseJsonField(item.product_images);
+        return {
+          name: item.name || "Product",
+          cat: item.category || "Uncategorized",
+          img: productImages?.[0] || "",
+          rev: formatCurrency((item.selling_price || 0) * (item.total_sold || 0)),
+          sales: item.total_sold || 0,
+        };
+      });
     } catch (error) {
       console.error("Error fetching top products:", error);
       topProductsData = [];
@@ -180,7 +193,7 @@ const getDashboard = async (req, res) => {
     // ────── GET PRODUCTS FOR LOW STOCK ALERTS ──────
     try {
       const [productRows] = await connection.query(
-        "SELECT id, name, category, thumbnail_image, selling_price, total_stock, stock_quantity, review_count FROM products ORDER BY review_count DESC"
+        "SELECT id, name, category, thumbnail_image, product_images, selling_price, total_stock, stock_quantity, review_count FROM products ORDER BY review_count DESC"
       );
       products = productRows;
 
@@ -201,13 +214,16 @@ const getDashboard = async (req, res) => {
     const lowStockAlerts = products
       .filter((item) => (item.total_stock || item.stock_quantity || 0) <= 5)
       .slice(0, 4)
-      .map((item) => ({
-        name: item.name,
-        img: item.thumbnail_image || "",
-        cat: item.category || "Uncategorized",
-        stock: item.total_stock ?? item.stock_quantity ?? 0,
-        color: item.total_stock <= 2 || item.stock_quantity <= 2 ? "text-red-500" : "text-amber-500",
-      }));
+      .map((item) => {
+        const productImages = parseJsonField(item.product_images);
+        return {
+          name: item.name,
+          img: productImages?.[0] || "",
+          cat: item.category || "Uncategorized",
+          stock: item.total_stock ?? item.stock_quantity ?? 0,
+          color: item.total_stock <= 2 || item.stock_quantity <= 2 ? "text-red-500" : "text-amber-500",
+        };
+      });
 
     const categoryAnalytics = categoryCounts.map((category, index) => {
       const pct = totalProducts > 0 ? Math.round((category.count / totalProducts) * 100) : 0;

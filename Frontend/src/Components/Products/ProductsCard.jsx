@@ -1,5 +1,6 @@
 import React, { useState, useContext } from "react";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
+import { getFileUrl, getProductImageUrl } from "../../api";
 import { FiPlus, FiHeart, FiShare2 } from "react-icons/fi";
 import { BsQrCode } from "react-icons/bs";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +14,6 @@ const ProductCard = ({ product }) => {
   const { addToCart, toggleWishlist, wishlist } = useContext(StoreContext);
   const navigate = useNavigate();
   const [showQR, setShowQR] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const [quickView, setQuickView] = useState(false);
 
   const isInWishlist = wishlist.some(
@@ -47,70 +47,20 @@ const ProductCard = ({ product }) => {
     }
   };
 
-  // Helper to resolve image URLs
-  const resolveImage = (img) => {
-    if (!img || typeof img !== 'string') return null;
-    const trimmed = img.trim();
-    if (!trimmed) return null;
-    if (trimmed.startsWith('http') || trimmed.startsWith('data:')) return trimmed;
+  const fallbackProductImages = Array.isArray(product.product_images)
+    ? product.product_images
+    : typeof product.product_images === "string"
+      ? product.product_images.split(",").map((item) => item.trim()).filter(Boolean)
+      : [];
 
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-    const cleanPath = trimmed.replace(/\\/g, '/');
-    const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
-    return `${backendUrl}${finalPath}`;
-  };
-
-  const normalizeImageList = (value) => {
-    if (!value) return [];
-
-    if (Array.isArray(value)) {
-      return value.filter(Boolean);
-    }
-
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (!trimmed) return [];
-
-      try {
-        const parsed = JSON.parse(trimmed);
-        return Array.isArray(parsed) ? parsed.filter(Boolean) : [parsed].filter(Boolean);
-      } catch {
-        if (trimmed.startsWith('[')) return [];
-        return [trimmed];
-      }
-    }
-
-    return [value];
-  };
-
-  const imageCandidates = [
-    product?.product_images,
-    product?.images,
-    product?.image,
-    product?.image_url,
-    product?.variants?.[0]?.images,
-  ];
-
-  const images = Array.from(
-    new Set(
-      imageCandidates
-        .flatMap((candidate) => normalizeImageList(candidate))
-        .map((img) => resolveImage(img))
-        .filter(Boolean)
-    )
-  );
-
-  if (images.length === 0) {
-    images.push(`https://ui-avatars.com/api/?name=${encodeURIComponent(product?.name || "Product")}&background=random`);
-  }
-
-  const image = hovered && images[1] ? images[1] : images[0];
+  const firstProductImage = fallbackProductImages[0] || getProductImageUrl(product);
+  const image = firstProductImage ? getFileUrl(firstProductImage) : null;
 
   return (
     <>
       <div
         onClick={handleClick}
-        className="relative bg-white rounded-xl border border-gray-200 p-3 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer flex flex-col h-full"
+        className="relative bg-white rounded-xl border border-gray-200 p-3 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col h-full"
       >
         {/* Icons */}
         {/* <div
@@ -159,11 +109,7 @@ const ProductCard = ({ product }) => {
         </div> */}
 
         {/* Image Area */}
-        <div
-          className="relative  h-48 w-full flex items-center justify-center mb-3"
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-        >
+        <div className="relative h-48 w-full flex items-center justify-center mb-3">
           {/* Top Left Tags */}
           <div className="absolute top-0 left-0 z-10 flex flex-col gap-1">
             {product?.bestseller ? (
@@ -178,22 +124,17 @@ const ProductCard = ({ product }) => {
           </div>
 
           {/* Default Image */}
-          <img
-            src={images[0]}
-            alt={product?.name}
-            className={`max-w-full max-h-full object-cover transition-opacity duration-500 ${hovered && images[1] ? "opacity-0" : "opacity-100"
-              }`}
-          />
-
-          {/* Hover Image */}
-          {images[1] && (
+          {image ? (
             <img
-              src={images[1]}
+              src={image}
               alt={product?.name}
-              className={`absolute max-w-full max-h-full object-cover transition-opacity duration-500 ${hovered ? "opacity-100" : "opacity-0"
-                }`}
+              className="max-w-full max-h-full object-cover"
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.src = "";
+              }}
             />
-          )}
+          ) : null}
         </div>
 
         {/* Content */}

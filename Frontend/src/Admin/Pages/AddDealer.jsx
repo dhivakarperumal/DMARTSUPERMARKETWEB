@@ -136,8 +136,8 @@ const AddDealer = () => {
 
         try {
             const urls = await compressAndUpload([file], "dealers", {
-                maxSizeMB: 0.5,
-                maxWidthOrHeight: 800,
+                maxSizeMB: 5,
+                maxWidthOrHeight: 2000,
             });
             if (urls.length > 0) {
                 setFormData(prev => ({ ...prev, profileImage: urls[0] }));

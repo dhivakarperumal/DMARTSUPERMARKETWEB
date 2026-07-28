@@ -155,16 +155,16 @@ const Category = () => {
                 return;
             }
 
-            if (file.size > 5 * 1024 * 1024) {
-                toast.error("Image must be 5MB or smaller.");
+            if (file.size > 10 * 1024 * 1024) {
+                toast.error("Image must be 10MB or smaller.");
                 return;
             }
 
             const urls = await compressAndUpload([file], "categories", {
-                maxSizeMB: 0.5,
-                maxWidthOrHeight: 800,
+                maxSizeMB: 5,
+                maxWidthOrHeight: 2000,
                 fileType: "image/jpeg",
-                initialQuality: 0.7,
+                initialQuality: 0.9,
             });
 
             if (urls.length > 0) {

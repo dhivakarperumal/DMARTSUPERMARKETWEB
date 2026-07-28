@@ -340,33 +340,7 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         </nav>
 
         {/* ===== BOOST SALES CARD ===== */}
-        {!collapsed && (
-          <div className="mx-4 mb-4 mt-8 relative bg-white rounded-2xl shadow-xl p-5 pl-2 flex overflow-visible min-h-[140px]">
-            {/* Basket Image breaking out of container slightly */}
-            <div className="w-[125px] h-[135px] -ml-2 -mt-4 shrink-0 relative z-10 flex items-center drop-shadow-2xl">
-              <img src={basketImage} alt="Basket" className="w-full h-full object-contain" />
-            </div>
-            
-            {/* Content */}
-            <div className="flex-1 flex flex-col justify-center pl-2 py-2">
-              <h4 className="text-[#042f1a] font-bold text-[14px] leading-tight mb-1.5">Boost Your Sales!</h4>
-              <p className="text-gray-500 text-[10px] font-medium leading-relaxed mb-4 pr-1">
-                Create exciting offers & discounts to attract more customers.
-              </p>
-              
-              <NavLink 
-                to="/admin/banners"
-                onClick={() => { if (isOpen) onClose(); }}
-                className="bg-gradient-to-r from-[#6bba27] to-[#4da828] hover:from-[#5ea322] hover:to-[#429322] text-white text-[11px] font-bold py-2 px-3.5 rounded-lg flex items-center justify-between transition-all shadow-md group w-full"
-              >
-                <span>Create Offer</span>
-                <div className="bg-white rounded-full text-[#4da828] p-1 group-hover:translate-x-0.5 transition-transform">
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </div>
-              </NavLink>
-            </div>
-          </div>
-        )}
+        
         {!collapsed && (
           <div className="mx-4 mb-6 p-2 rounded-xl border border-transparent flex items-center gap-3 bg-transparent cursor-pointer hover:bg-white/5 transition-all">
             <div className="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center shrink-0 overflow-hidden border-2 border-[#1b7f29]">

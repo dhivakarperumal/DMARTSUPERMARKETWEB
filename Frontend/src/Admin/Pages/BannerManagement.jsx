@@ -83,10 +83,10 @@ const BannerManagement = () => {
 
         try {
             const urls = await compressAndUpload([file], "banners", {
-                maxSizeMB: 0.5,
-                maxWidthOrHeight: isMobile ? 800 : 1400,
+                maxSizeMB: 8,
+                maxWidthOrHeight: isMobile ? 1400 : 2500,
                 fileType: "image/jpeg",
-                initialQuality: 0.75,
+                initialQuality: 0.9,
             });
 
             if (urls.length > 0) {

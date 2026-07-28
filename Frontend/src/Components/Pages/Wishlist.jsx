@@ -1,22 +1,10 @@
 import React, { useContext } from "react";
 import { FiHeart, FiTrash2, FiEye, FiShoppingCart } from "react-icons/fi";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
+import { getProductImageUrl, getFileUrl, normalizeImageList } from "../../api";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../CommenComponents/PageHeader";
 import PageContainer from "../CommenComponents/PageContainer";
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-
-const resolveImage = (url) => {
-  if (!url || typeof url !== "string") return null;
-  const trimmed = url.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith("http") || trimmed.startsWith("data:")) return trimmed;
-  const cleanPath = trimmed.replace(/\\/g, "/");
-  return cleanPath.startsWith("/")
-    ? `${BACKEND_URL}${cleanPath}`
-    : `${BACKEND_URL}/${cleanPath}`;
-};
 
 const normalizeImages = (value) => {
   if (!value) return [];
@@ -36,27 +24,23 @@ const normalizeImages = (value) => {
 };
 
 const getItemImage = (item) => {
-  const candidates = [
-    item.product_images,
-    item.images,
-    item.image,
-    item.image_url,
-    item.product_image,
-  ];
-  for (const candidate of candidates) {
-    const list = normalizeImages(candidate);
-    if (list.length > 0) {
-      const resolved = resolveImage(list[0]);
-      if (resolved) return resolved;
-    }
+  const resolved = getProductImageUrl(item);
+  if (resolved) return resolved;
+
+  const images = normalizeImageList(
+    item.image || item.product_images || item.images || item.product_image || item.thumbnail_image || []
+  );
+  if (images.length > 0) {
+    return getFileUrl(images[0]) || images[0];
   }
+
   if (item.variants?.length > 0) {
-    const variantImgs = normalizeImages(item.variants[0]?.images);
-    if (variantImgs.length > 0) {
-      const resolved = resolveImage(variantImgs[0]);
-      if (resolved) return resolved;
+    const variantImages = normalizeImageList(item.variants[0]?.images || item.variants[0]?.image || []);
+    if (variantImages.length > 0) {
+      return getFileUrl(variantImages[0]) || variantImages[0];
     }
   }
+
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(
     item.name || item.product_name || "Product"
   )}&background=d1fae5&color=065f46&size=400`;

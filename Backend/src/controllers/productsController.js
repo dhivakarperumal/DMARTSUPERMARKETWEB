@@ -4,11 +4,80 @@ const crypto = require("crypto");
 
 const parseJsonField = (value) => {
   if (!value) return [];
-  try {
-    return JSON.parse(value);
-  } catch (error) {
-    return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      if (typeof parsed === "string") return [parsed];
+    } catch (error) {
+      // ignore invalid JSON and fall back to string handling
+    }
+
+    if (trimmed.includes(",")) {
+      return trimmed.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+
+    return [trimmed];
   }
+
+  return [value];
+};
+
+const normalizeProductImages = (value) => {
+  const images = parseJsonField(value);
+  return images
+    .filter(Boolean)
+    .map(normalizeProductImagePath)
+    .filter(Boolean);
+};
+
+const normalizeProductImagePath = (img) => {
+  if (!img) return null;
+  let text = String(img).trim();
+  if (!text) return null;
+
+  try {
+    const parsedUrl = new URL(text);
+    let normalizedPath = parsedUrl.pathname
+      .replace(/\/+/g, "/")
+      .replace(/(^|\/)api\/uploads\/uploads\//gi, "$1api/uploads/")
+      .replace(/(^|\/)uploads\/uploads\//gi, "$1uploads/")
+      .replace(/^\/+/, "");
+
+    if (/^(?:api\/uploads\/|uploads\/)/i.test(normalizedPath)) {
+      return `${parsedUrl.origin}/${normalizedPath}`.replace(/\/+/g, "/");
+    }
+
+    return text;
+  } catch {
+    // Not an absolute URL, continue normalizing relative paths
+  }
+
+  // Normalize duplicate segments
+  text = text.replace(/(^|\/)api\/uploads\/+/gi, "$1api/uploads/");
+  text = text.replace(/(^|\/)uploads\/+/gi, "$1uploads/");
+  text = text.replace(/api\/uploads\/uploads\//gi, "api/uploads/");
+  text = text.replace(/uploads\/uploads\//gi, "uploads/");
+  text = text.replace(/^\/+/, "");
+
+  if (/^api\/uploads\//i.test(text)) {
+    return text;
+  }
+
+  if (/^uploads\//i.test(text)) {
+    return text.replace(/^uploads\//i, "api/uploads/");
+  }
+
+  if (/^[^\/]+\.(jpe?g|png|webp|gif|svg)$/i.test(text)) {
+    return `api/uploads/products/${text}`;
+  }
+
+  return text;
 };
 
 const transformPricingOptionsToVariants = (pricingOptions) => {
@@ -86,7 +155,7 @@ const createProduct = async (req, res) => {
           data.manufacturing_date || "",
           data.country_of_origin || "",
           data.supplier || "",
-          JSON.stringify(Array.isArray(data.product_images) ? data.product_images : []),
+          JSON.stringify(normalizeProductImages(data.product_images)),
           data.thumbnail_image || "",
           data.status || 'Active',
           data.featured_product || false,
@@ -139,11 +208,21 @@ const getProducts = async (req, res) => {
 
       const products = rows.map((row) => {
         const pricingOptions = parseJsonField(row.pricing_options);
+        const parsedProductImages = parseJsonField(row.product_images);
+        const resolvedProductImages = parsedProductImages.length > 0
+          ? parsedProductImages
+          : parseJsonField(row.thumbnail_image);
+
+        const normalizedProductImages = resolvedProductImages
+          .map(normalizeProductImagePath)
+          .filter(Boolean);
+
         return {
           ...row,
           pricing_options: pricingOptions,
           variants: transformPricingOptionsToVariants(pricingOptions),
-          product_images: parseJsonField(row.product_images),
+          product_images: normalizedProductImages,
+          thumbnail_image: normalizeProductImagePath(row.thumbnail_image),
           featured_product: !!row.featured_product,
           best_seller: !!row.best_seller,
           todays_deal: !!row.todays_deal,
@@ -226,9 +305,17 @@ const getProduct = async (req, res) => {
 
       const product = rows[0];
       const pricingOptions = parseJsonField(product.pricing_options);
+      const parsedProductImages = parseJsonField(product.product_images);
+      const resolvedProductImages = parsedProductImages.length > 0
+        ? parsedProductImages
+        : parseJsonField(product.thumbnail_image);
+
       product.pricing_options = pricingOptions;
       product.variants = transformPricingOptionsToVariants(pricingOptions);
-      product.product_images = parseJsonField(product.product_images);
+      product.product_images = resolvedProductImages
+        .map(normalizeProductImagePath)
+        .filter(Boolean);
+      product.thumbnail_image = normalizeProductImagePath(product.thumbnail_image);
       product.featured_product = !!product.featured_product;
       product.best_seller = !!product.best_seller;
       product.todays_deal = !!product.todays_deal;
@@ -290,6 +377,11 @@ const updateProduct = async (req, res) => {
       }
 
       const updated_by = req.headers['x-user-id'] || null;
+      const incomingImages = data.product_images !== undefined ? data.product_images : existingRows[0].product_images;
+      const normalizedIncomingImages = normalizeProductImages(incomingImages);
+      const fallbackImages = normalizedIncomingImages.length > 0
+        ? normalizedIncomingImages
+        : normalizeProductImages(existingRows[0].thumbnail_image || existingRows[0].product_images);
 
       await connection.execute(
         `UPDATE products SET 
@@ -320,8 +412,8 @@ const updateProduct = async (req, res) => {
           data.manufacturing_date || "",
           data.country_of_origin || "",
           data.supplier || "",
-          JSON.stringify(Array.isArray(data.product_images) ? data.product_images : parseJsonField(existingRows[0].product_images)),
-          data.thumbnail_image || existingRows[0].thumbnail_image,
+          JSON.stringify(fallbackImages),
+          data.thumbnail_image !== undefined ? data.thumbnail_image : "",
           data.status || 'Active',
           data.featured_product || false,
           data.best_seller || false,

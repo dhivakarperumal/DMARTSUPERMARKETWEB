@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import api from "../../api";
+import api, { getFileUrl } from "../../api";
 import { toast, Toaster } from "react-hot-toast";
 import { QRCodeCanvas } from "qrcode.react";
 import {
@@ -12,13 +12,7 @@ import {
 import { BsQrCode, BsBox, BsBoxSeam, BsUpc } from "react-icons/bs";
 import { MdOutlineLocalOffer, MdVerified } from "react-icons/md";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-
-const processUrl = (url) => {
-    if (!url || typeof url !== "string") return null;
-    if (url.startsWith("http") || url.startsWith("data:")) return url;
-    return url.startsWith("/") ? `${BACKEND_URL}${url}` : `${BACKEND_URL}/${url}`;
-};
+// Use getFileUrl() from api to resolve backend file URLs reliably
 
 const Badge = ({ label, color = "blue" }) => {
     const colors = {
@@ -128,7 +122,7 @@ const ProductDetail = () => {
             }
         }
         
-        const displayImgs = parsedImgs.map(processUrl).filter(Boolean);
+        const displayImgs = parsedImgs.map(getFileUrl).filter(Boolean);
         if (displayImgs.length > 0) return displayImgs;
 
         return [];

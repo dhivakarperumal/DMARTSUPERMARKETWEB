@@ -2,7 +2,7 @@ import React, { useContext, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
 import { AuthContext } from "../../PrivateRouter/AuthContext";
-import api from "../../api";
+import api, { getFileUrl, getProductImageUrl } from "../../api";
 import PageHeader from "../CommenComponents/PageHeader";
 import toast from "react-hot-toast";
 import { FiMapPin, FiPackage, FiCreditCard, FiShield, FiCheckCircle } from "react-icons/fi";
@@ -41,14 +41,8 @@ const Checkout = () => {
   });
 
   const resolveImageUrl = (url) => {
-    if (!url || typeof url !== 'string') return null;
-    const trimmed = url.trim();
-    if (!trimmed) return null;
-    if (trimmed.startsWith('http') || trimmed.startsWith('data:')) return trimmed;
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-    const cleanPath = trimmed.replace(/\\/g, '/');
-    const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
-    return `${backendUrl}${finalPath}`;
+    const final = getFileUrl(url);
+    return final;
   };
 
   const normalizeImageList = (value) => {
@@ -254,15 +248,7 @@ const Checkout = () => {
       {
         id: buyNowProduct.id,
         name: buyNowProduct.name,
-        image: (() => {
-          const vImages = normalizeImageList(buyNowVariant?.images);
-          if (vImages.length > 0) return vImages[0];
-          const pImages = normalizeImageList(buyNowProduct?.images);
-          if (pImages.length > 0) return pImages[0];
-          const pProdImages = normalizeImageList(buyNowProduct?.product_images);
-          if (pProdImages.length > 0) return pProdImages[0];
-          return "/placeholder.png";
-        })(),
+        image: getProductImageUrl(buyNowProduct) || "/placeholder.png",
         price: buyNowProduct.offer_price || buyNowProduct.price,
         quantity: buyNowQuantity,
         size: buyNowSize,
@@ -1139,7 +1125,7 @@ const Checkout = () => {
                         className="flex items-center gap-3 rounded-xl border border-gray-100 p-3 hover:bg-gray-50"
                       >
                         <img
-                          src={resolveImageUrl(item.image) || "/placeholder.png"}
+                          src={getProductImageUrl(item) || "/placeholder.png"}
                           alt={item.name}
                           className="h-16 w-16 rounded-lg object-cover"
                           onError={(e) => (e.target.src = "/placeholder.png")}

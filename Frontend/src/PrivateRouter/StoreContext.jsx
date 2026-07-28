@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
 import { toast } from "react-hot-toast";
-import api from "../api";
+import api, { getProductImageUrl, normalizeImageList } from "../api";
 import { AuthContext } from "./AuthContext";
 import { normalizeApiData } from "../utils/normalizeApiData";
 
@@ -97,9 +97,13 @@ export const StoreProvider = ({ children }) => {
         const selectedSize = size || groceryVariantInfo || selectedVariant?.selectedSizes?.[0] || "Free Size";
         const variantColor = selectedVariant?.colorName || selectedVariant?.color || "Default";
         
-        // Correctly parse images if they are stored as JSON strings
-        const productImages = typeof product.images === 'string' ? JSON.parse(product.images) : (product.images || []);
-        const variantImage = selectedVariant?.images?.[0] || productImages[0] || null;
+        const productImages = normalizeImageList(
+          product.product_images || product.images || product.image || product.thumbnail_image || []
+        );
+        const selectedVariantImages = normalizeImageList(
+          selectedVariant?.images || selectedVariant?.image || []
+        );
+        const variantImage = selectedVariantImages[0] || productImages[0] || null;
         
         const price = parseFloat(selectedVariant?.sellingPrice || selectedVariant?.selling_price || product.offer_price || product.price || 0);
         const categoryId = product.category_id || product.categoryId || null;
@@ -241,9 +245,13 @@ export const StoreProvider = ({ children }) => {
                 const selectedSize = size || groceryVariantInfo || selectedVariant?.selectedSizes?.[0] || "";
                 const variantColor = selectedVariant?.colorName || selectedVariant?.color || "";
                 
-                // Correctly parse images if they are stored as JSON strings
-                const productImages = typeof product.images === 'string' ? JSON.parse(product.images) : (product.images || []);
-                const variantImage = selectedVariant?.images?.[0] || productImages[0] || null;
+                const productImages = normalizeImageList(
+                  product.product_images || product.images || product.image || product.thumbnail_image || []
+                );
+                const selectedVariantImages = normalizeImageList(
+                  selectedVariant?.images || selectedVariant?.image || []
+                );
+                const variantImage = selectedVariantImages[0] || productImages[0] || null;
                 
                 const price = parseFloat(selectedVariant?.sellingPrice || selectedVariant?.selling_price || product.offer_price || product.price || 0);
 

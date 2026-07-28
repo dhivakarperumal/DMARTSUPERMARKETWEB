@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import api from "../../api";
 import ProductCard from "../Products/ProductsCard";
 import PageHeader from "../CommenComponents/PageHeader";
@@ -21,6 +21,8 @@ const Shop = ({ defaultCategory = "" }) => {
     !productsCache || productsCache.length === 0,
   );
 
+  const refreshInterval = 1000 * 60 * 5; // 5 minutes
+
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(
     defaultCategory ? true : false,
@@ -39,22 +41,34 @@ const Shop = ({ defaultCategory = "" }) => {
 
   const [currentPage, setCurrentPage] = useState(1);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       const res = await api.get("/products");
       const data = normalizeApiData(res.data);
       setProducts(data);
       setFilteredProducts(data);
+      setProductsCache(data);
+      setLastFetchTime(Date.now());
     } catch (error) {
       console.error("Error fetching products:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [setProductsCache, setLastFetchTime]);
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    if (Array.isArray(productsCache) && productsCache.length > 0) {
+      setProducts(productsCache);
+      setFilteredProducts(productsCache);
+      setLoading(false);
+
+      if (Date.now() - lastFetchTime > refreshInterval) {
+        fetchProducts();
+      }
+    } else {
+      fetchProducts();
+    }
+  }, [productsCache, lastFetchTime, fetchProducts]);
 
   /* ---------------- FILTER LOGIC ---------------- */
 
@@ -160,35 +174,49 @@ const Shop = ({ defaultCategory = "" }) => {
 
   /* -------- UNIQUE FILTER DATA -------- */
 
-  const categories = [...new Set(products.map((p) => p.category))].filter(Boolean);
+  const categories = useMemo(
+    () => [...new Set(products.map((p) => p.category))].filter(Boolean),
+    [products],
+  );
 
-  const subCategories = [
-    ...new Set(
-      products
-        .filter((p) => p.category === selectedCategory)
-        .map((p) => p.subcategory),
-    ),
-  ].filter(Boolean);
-
-  const colors = selectedCategory
-    ? [
+  const subCategories = useMemo(
+    () => [
       ...new Set(
         products
           .filter((p) => p.category === selectedCategory)
-          .flatMap((p) => p.variants?.map((v) => v.colorName)),
+          .map((p) => p.subcategory),
       ),
-    ].filter(Boolean)
-    : [];
+    ].filter(Boolean),
+    [products, selectedCategory],
+  );
 
-  const sizes = selectedCategory
-    ? [
-      ...new Set(
-        products
-          .filter((p) => p.category === selectedCategory)
-          .flatMap((p) => p.variants?.flatMap((v) => v.selectedSizes || [])),
-      ),
-    ].filter(Boolean)
-    : [];
+  const colors = useMemo(
+    () =>
+      selectedCategory
+        ? [
+          ...new Set(
+            products
+              .filter((p) => p.category === selectedCategory)
+              .flatMap((p) => p.variants?.map((v) => v.colorName)),
+          ),
+        ].filter(Boolean)
+        : [],
+    [products, selectedCategory],
+  );
+
+  const sizes = useMemo(
+    () =>
+      selectedCategory
+        ? [
+          ...new Set(
+            products
+              .filter((p) => p.category === selectedCategory)
+              .flatMap((p) => p.variants?.flatMap((v) => v.selectedSizes || [])),
+          ),
+        ].filter(Boolean)
+        : [],
+    [products, selectedCategory],
+  );
 
 
   const clearFilters = () => {

@@ -17,7 +17,7 @@ import {
     FiXCircle
 } from "react-icons/fi";
 const logo = "/logo.png";
-import api from "../../api";
+import api, { getFileUrl } from "../../api";
 import { toast, Toaster } from "react-hot-toast";
 
 const OrderDetail = () => {
@@ -233,15 +233,7 @@ const OrderDetail = () => {
         let imgUrl = null;
         try {
             // Helper to clean and prefix URL
-            const processUrl = (url) => {
-                if (!url || typeof url !== 'string') return null;
-                if (url.startsWith('http') || url.startsWith('data:')) return url;
-                const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-                // Convert Windows backslashes to forward slashes
-                const cleanPath = url.replace(/\\/g, '/');
-                const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
-                return `${backendUrl}${finalPath}`;
-            };
+            // use getFileUrl to resolve image path
 
             // 1. Check direct image from order item
             if (item.image && typeof item.image === 'string' && !item.image.startsWith('[')) {
@@ -270,7 +262,7 @@ const OrderDetail = () => {
                 if (Array.isArray(imgs) && imgs.length > 0) imgUrl = imgs[0];
             }
 
-            const finalUrl = processUrl(imgUrl);
+            const finalUrl = getFileUrl(imgUrl);
             if (finalUrl) return finalUrl;
 
         } catch (error) {

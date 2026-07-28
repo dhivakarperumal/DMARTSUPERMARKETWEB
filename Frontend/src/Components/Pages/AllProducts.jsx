@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import api from "../../api";
+import api, { getProductImageUrl } from "../../api";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
 import { Link } from "react-router-dom";
 import {
@@ -56,10 +56,11 @@ const AllProducts = () => {
     useEffect(() => { fetchProducts(); }, []);
 
     const getImage = (product) => {
+        const imageUrl = getProductImageUrl(product);
+        if (imageUrl) return imageUrl;
         if (product.variants?.length > 0 && product.variants[0]?.images?.length > 0)
             return product.variants[0].images[0];
-        if (product.images?.length > 0) return product.images[0];
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&background=f3f4f6&color=64748b&size=400`;
+        return null;
     };
 
     const filtered = (Array.isArray(products) ? products : [])
@@ -240,6 +241,10 @@ const AllProducts = () => {
                                             alt={product.name}
                                             loading="lazy"
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                            onError={(event) => {
+                                                event.currentTarget.onerror = null;
+                                                event.currentTarget.src = "/images/logo.png";
+                                            }}
                                         />
                                     </div>
 

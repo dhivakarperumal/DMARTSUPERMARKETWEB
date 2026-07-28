@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import logo from "/images/logo.png";
 import PageContainer from "./PageContainer";
-import api from "../../api";
+import api, { getProductImageUrl } from "../../api";
 import { toast } from "react-hot-toast";
 import { FiHome, FiShoppingBag, FiGrid, FiFileText, FiPhone, FiChevronRight, FiTag } from "react-icons/fi";
 import { normalizeApiData } from "../../utils/normalizeApiData";
@@ -489,10 +489,9 @@ const Navbar = () => {
                             "Product";
 
                           const image =
+                            getProductImageUrl(item) ||
                             item.image ||
                             item.product_image ||
-                            (Array.isArray(item.product_images) && item.product_images[0]) ||
-                            (typeof item.product_images === 'string' && JSON.parse(item.product_images)?.[0]) ||
                             "/placeholder.png";
 
                           const price =
@@ -744,12 +743,7 @@ const Navbar = () => {
                           item.productName ||
                           "Product";
 
-                        const image =
-                          item.image ||
-                          item.product_image ||
-                          (Array.isArray(item.product_images) && item.product_images[0]) ||
-                          (typeof item.product_images === 'string' && JSON.parse(item.product_images)?.[0]) ||
-                          "/placeholder.png";
+                        const image = getProductImageUrl(item) || "/placeholder.png";
 
                         const price =
                           item.offer_price ||

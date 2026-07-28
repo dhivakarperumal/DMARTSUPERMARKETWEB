@@ -1,7 +1,8 @@
 import { toast } from "react-hot-toast";
 import imageCompression from "browser-image-compression";
+import { BACKEND_URL } from "../api";
 
-const UPLOAD_URL = "https://dmart.qtechx.com/api/upload.php";
+const UPLOAD_URL = `${BACKEND_URL.replace(/\/$/, "")}/api/upload`;
 
 /**
  * Upload files to the GoDaddy server via upload.php
@@ -59,11 +60,22 @@ export const uploadFiles = async (files, category = "products") => {
  */
 export const compressImage = async (file, options = {}) => {
   const defaultOptions = {
-    maxSizeMB: 0.1,
-    maxWidthOrHeight: 800,
+    maxSizeMB: 5,
+    maxWidthOrHeight: 3000,
     useWebWorker: true,
     ...options,
   };
+
+  const shouldCompress =
+    file.size > defaultOptions.maxSizeMB * 1024 * 1024 ||
+    options.fileType ||
+    options.initialQuality ||
+    (options.maxWidthOrHeight && options.maxWidthOrHeight < defaultOptions.maxWidthOrHeight);
+
+  if (!shouldCompress) {
+    return file;
+  }
+
   const compressed = await imageCompression(file, defaultOptions);
   return new File([compressed], file.name || "image.jpg", {
     type: compressed.type,

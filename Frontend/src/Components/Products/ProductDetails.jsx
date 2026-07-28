@@ -6,7 +6,7 @@ import { Navigation, Autoplay, Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
-import api from "../../api";
+import api, { getFileUrl } from "../../api";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
 import {
   FiHeart,
@@ -94,10 +94,7 @@ const ProductDetails = () => {
     const trimmed = url.trim();
     if (!trimmed) return null;
     if (trimmed.startsWith('http') || trimmed.startsWith('data:')) return trimmed;
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-    const cleanPath = trimmed.replace(/\\/g, '/');
-    const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
-    return `${backendUrl}${finalPath}`;
+    return getFileUrl(url);
   };
 
   const normalizeImageList = (value) => {
@@ -176,13 +173,7 @@ const ProductDetails = () => {
       )
     );
 
-    if (images.length > 0) {
-      return images;
-    }
-
-    return [
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(data?.name || "Product")}&background=random`
-    ];
+    return images;
   };
 
   const fetchProduct = async () => {
@@ -398,7 +389,7 @@ const ProductDetails = () => {
 
   const displayImages = product ? getDisplayImages(product, selectedVariant) : [];
   const comboItems = getComboItems(product?.combo_items);
-  const fallbackImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(product?.name || "Product")}&background=random`;
+  const fallbackImage = "/images/logo.png";
 
   if (!product)
     return (
@@ -466,6 +457,7 @@ const ProductDetails = () => {
                 alt={product.name}
                 className="h-full w-full object-cover object-top transition duration-500"
                 onError={(e) => {
+                  e.currentTarget.onerror = null;
                   e.currentTarget.src = fallbackImage;
                 }}
               />
@@ -501,6 +493,7 @@ const ProductDetails = () => {
                     alt=""
                     className="h-full w-full object-cover"
                     onError={(e) => {
+                      e.currentTarget.onerror = null;
                       e.currentTarget.src = fallbackImage;
                     }}
                   />

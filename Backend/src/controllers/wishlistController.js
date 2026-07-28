@@ -2,12 +2,28 @@ const { getPool } = require("../config/db");
 
 const parseJsonField = (value) => {
     if (!value) return [];
-    try {
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : [];
-    } catch {
-        return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) return [];
+
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) return parsed.filter(Boolean);
+            if (typeof parsed === "string") return [parsed];
+        } catch {
+            // ignore invalid JSON and fall back to string parsing
+        }
+
+        if (trimmed.includes(",")) {
+            return trimmed.split(",").map((item) => item.trim()).filter(Boolean);
+        }
+
+        return [trimmed];
     }
+
+    return [value];
 };
 
 const enrichWishlistItem = async (item, pool) => {
@@ -23,7 +39,7 @@ const enrichWishlistItem = async (item, pool) => {
     }
 
     const productImages = parseJsonField(product?.product_images);
-    const fallbackImage = product?.thumbnail_image || productImages?.[0] || item.image || null;
+    const fallbackImage = productImages?.[0] || item.image || item.product_image || null;
 
     return {
         ...item,
