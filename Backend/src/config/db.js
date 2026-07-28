@@ -7,6 +7,7 @@ const config = {
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'supermarket_db',
+  charset: 'utf8mb4',          // match table COLLATE utf8mb4_unicode_ci
   waitForConnections: true,
   connectionLimit: 10,
   maxIdle: 10, // max idle connections, the default value is the same as `connectionLimit`

@@ -850,7 +850,7 @@ const Navbar = () => {
                       setCategoryMenu(!categoryMenu);
                       setPagesMenu(false);
                     }}
-                    className="bg-[#ffc107] text-black flex items-center gap-2 px-4 h-full text-sm font-semibold hover:bg-[#e0a800] transition cursor-pointer"
+                    className="bg-[#16a34a] text-white flex items-center gap-2 px-4 h-full text-sm font-semibold hover:bg-[#15803d]  transition cursor-pointer"
                   >
                     <Menu size={18} />
                     <span>All Categories</span>
@@ -955,7 +955,7 @@ const Navbar = () => {
 
               {/* Hot Deals */}
               <div className="flex justify-end">
-                <Link to="/combo" className="bg-[#e53935] text-white flex items-center gap-1.5 px-4 py-1.5 rounded text-[13px] font-bold hover:bg-red-700 transition shadow-sm h-8">
+                <Link to="/combo" className="bg-white text-[#16a34a] flex items-center gap-1.5 px-4 py-1.5 rounded text-[13px] font-bold  hover:bg-[#f0fdf4] hover:text-[#15803d] transition shadow-sm h-8">
                   Combo <span className="text-sm">🔥</span>
                 </Link>
               </div>

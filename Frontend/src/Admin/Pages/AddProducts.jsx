@@ -579,6 +579,10 @@ const AddProducts = () => {
         toast.success("Product added successfully.");
       }
 
+      // Clear the in-memory products cache so AllProducts always shows
+      // fresh data (including the newly saved product_images) immediately.
+      invalidateCache('products');
+
       refreshProductCaches();
       setTimeout(() => navigate("/admin/products/all"), 1500);
     } catch (error) {

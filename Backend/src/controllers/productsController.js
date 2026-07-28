@@ -1,7 +1,13 @@
 const { getPool } = require("../config/db");
-const { createProductTable } = require("../config/initDatabase");
 const crypto = require("crypto");
 
+/**
+ * Safely parse a JSON field from the database.
+ * - Handles NULL, undefined, empty string → returns []
+ * - Handles Buffer objects (returned by some MySQL driver configurations)
+ * - Handles double-encoded JSON (string-inside-JSON → parses twice)
+ * - Logs a warning if parsing fails so errors are never silently swallowed
+ */
 const parseJsonField = (value) => {
   if (!value) return [];
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -107,8 +113,6 @@ const createProduct = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
-
       let finalCategoryId = data.category_id || null;
       if (!finalCategoryId && data.category) {
         try {
@@ -129,10 +133,10 @@ const createProduct = async (req, res) => {
         `INSERT INTO products (
           product_id, name, product_code, barcode, barcode_image, category, category_id, subcategory, brand, description,
           mrp, selling_price, offer, offer_price, stock_quantity, pricing_options, total_stock,
-          expiry_date, manufacturing_date, country_of_origin, supplier, product_images, thumbnail_image,
+          expiry_date, manufacturing_date, country_of_origin, supplier, product_images,
           status, featured_product, best_seller, todays_deal, delivery_time, return_available, rating, review_count, combo_items, type,
           created_by, updated_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           product_id,
           data.name,
@@ -201,7 +205,6 @@ const getProducts = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
       const [rows] = await connection.execute(
         "SELECT * FROM products ORDER BY created_at DESC"
       );
@@ -227,7 +230,8 @@ const getProducts = async (req, res) => {
           best_seller: !!row.best_seller,
           todays_deal: !!row.todays_deal,
           return_available: !!row.return_available,
-          combo_items: parseJsonField(row.combo_items)
+          combo_items: parseJsonField(row.combo_items),
+          customer_review: parseJsonField(row.customer_review)
         };
       });
 
@@ -250,7 +254,6 @@ const getLatestCode = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
       const [rows] = await connection.execute(
         "SELECT product_code FROM products WHERE product_code IS NOT NULL AND product_code != ''"
       );
@@ -293,7 +296,6 @@ const getProduct = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
       const [rows] = await connection.execute(
         "SELECT * FROM products WHERE id = ?",
         [id]
@@ -321,6 +323,7 @@ const getProduct = async (req, res) => {
       product.todays_deal = !!product.todays_deal;
       product.return_available = !!product.return_available;
       product.combo_items = parseJsonField(product.combo_items);
+      product.customer_review = parseJsonField(product.customer_review);
 
       return res.status(200).json(product);
     } finally {
@@ -351,7 +354,6 @@ const updateProduct = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
       const [existingRows] = await connection.execute(
         "SELECT * FROM products WHERE id = ?",
         [id]
@@ -387,7 +389,7 @@ const updateProduct = async (req, res) => {
         `UPDATE products SET 
           name = ?, product_code = ?, barcode = ?, barcode_image = ?, category = ?, category_id = ?, subcategory = ?, brand = ?, description = ?,
           mrp = ?, selling_price = ?, offer = ?, offer_price = ?, stock_quantity = ?, pricing_options = ?, total_stock = ?,
-          expiry_date = ?, manufacturing_date = ?, country_of_origin = ?, supplier = ?, product_images = ?, thumbnail_image = ?,
+          expiry_date = ?, manufacturing_date = ?, country_of_origin = ?, supplier = ?, product_images = ?,
           status = ?, featured_product = ?, best_seller = ?, todays_deal = ?, delivery_time = ?, return_available = ?, rating = ?, review_count = ?, combo_items = ?, type = ?,
           updated_by = ?, updated_at = NOW() 
         WHERE id = ?`,
@@ -420,8 +422,8 @@ const updateProduct = async (req, res) => {
           data.todays_deal || false,
           data.delivery_time || "",
           data.return_available || false,
-          data.rating || 5,
-          data.review_count || 0,
+          data.rating !== undefined ? data.rating : existingRows[0].rating,
+          data.review_count !== undefined ? data.review_count : existingRows[0].review_count,
           JSON.stringify(Array.isArray(data.combo_items) ? data.combo_items : parseJsonField(existingRows[0].combo_items)),
           data.type !== undefined ? data.type : existingRows[0].type,
           updated_by,
@@ -458,7 +460,6 @@ const deleteProduct = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      await createProductTable();
       const [result] = await connection.execute(
         "DELETE FROM products WHERE id = ?",
         [id]
@@ -484,11 +485,78 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+const addProductReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id, user_name, user_email, rating, comment, review_image } = req.body;
+
+    if (!user_id || !rating) {
+      return res.status(400).json({ success: false, message: "user_id and rating are required." });
+    }
+
+    const pool = getPool();
+    const connection = await pool.getConnection();
+
+    try {
+      const [rows] = await connection.execute("SELECT customer_review, rating, review_count FROM products WHERE id = ?", [id]);
+      
+      if (rows.length === 0) {
+        return res.status(404).json({ success: false, message: "Product not found." });
+      }
+
+      const product = rows[0];
+      const reviews = parseJsonField(product.customer_review);
+
+      // Check if user already reviewed
+      if (reviews.some(r => String(r.user_id) === String(user_id))) {
+        return res.status(400).json({ success: false, message: "You have already submitted a review for this product." });
+      }
+
+      const newReview = {
+        user_id,
+        user_name,
+        user_email,
+        rating: Number(rating),
+        review: comment || "",
+        image: review_image || "",
+        created_at: new Date().toISOString()
+      };
+
+      reviews.push(newReview);
+
+      const newReviewCount = (product.review_count || 0) + 1;
+      const currentTotalRating = (product.rating || 5) * (product.review_count || 0);
+      let newAverageRating = (currentTotalRating + Number(rating)) / newReviewCount;
+      if (newAverageRating > 5) newAverageRating = 5;
+
+      await connection.execute(
+        "UPDATE products SET customer_review = ?, rating = ?, review_count = ? WHERE id = ?",
+        [JSON.stringify(reviews), newAverageRating, newReviewCount, id]
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Review added successfully.",
+        review: newReview
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Add product review failed:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add product review.",
+    });
+  }
+};
+
 module.exports = {
   createProduct,
   getProducts,
   getProduct,
   updateProduct,
   deleteProduct,
-  getLatestCode
+  getLatestCode,
+  addProductReview
 };

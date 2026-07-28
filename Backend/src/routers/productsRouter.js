@@ -5,12 +5,14 @@ const {
   getProduct,
   updateProduct,
   deleteProduct,
-  getLatestCode
+  getLatestCode,
+  addProductReview
 } = require("../controllers/productsController");
 
 const router = express.Router();
 
 router.post("/", createProduct);
+router.post("/:id/reviews", addProductReview);
 router.get("/", getProducts);
 router.get("/all", getProducts);
 router.get("/latest-code", getLatestCode);

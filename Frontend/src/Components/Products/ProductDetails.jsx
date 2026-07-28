@@ -66,27 +66,29 @@ const ProductDetails = () => {
   const [backgroundPosition, setBackgroundPosition] = useState("50% 50%");
   const zoomLevel = 2.5;
 
-  const fetchReviews = async () => {
-    try {
-      setLoadingReviews(true);
-      const res = await api.get(`/reviews/product/${id}`);
-      setReviews(res.data?.reviews || []);
-      setReviewStats(
-        res.data?.stats || {
-          total_reviews: 0,
-          average_rating: 0,
-          five_star: 0,
-          four_star: 0,
-          three_star: 0,
-          two_star: 0,
-          one_star: 0,
-        }
-      );
-    } catch (error) {
-      console.error("Error fetching reviews:", error);
-    } finally {
-      setLoadingReviews(false);
+  const calculateStats = (reviewsArray) => {
+    const total = reviewsArray.length;
+    if (total === 0) {
+      return { total_reviews: 0, average_rating: 0, five_star: 0, four_star: 0, three_star: 0, two_star: 0, one_star: 0 };
     }
+    const stats = { total_reviews: total, average_rating: 0, five_star: 0, four_star: 0, three_star: 0, two_star: 0, one_star: 0 };
+    let sum = 0;
+    reviewsArray.forEach(r => {
+      const rate = Number(r.rating);
+      sum += rate;
+      if (rate === 5) stats.five_star++;
+      else if (rate === 4) stats.four_star++;
+      else if (rate === 3) stats.three_star++;
+      else if (rate === 2) stats.two_star++;
+      else if (rate === 1) stats.one_star++;
+    });
+    stats.average_rating = Number((sum / total).toFixed(1));
+    return stats;
+  };
+
+  const fetchReviews = async () => {
+    // Reviews are now fetched with the product as customer_review
+    setLoadingReviews(false);
   };
 
   const resolveImageUrl = (url) => {
@@ -202,6 +204,11 @@ const ProductDetails = () => {
         setSelectedImage(images[0]);
         setSelectedSize(null);
       }
+
+      const reviewsArr = data.customer_review || [];
+      setReviews(reviewsArr);
+      setReviewStats(calculateStats(reviewsArr));
+
     } catch (error) {
       console.error(error);
     }
@@ -222,7 +229,7 @@ const ProductDetails = () => {
 
   const formatStockValue = (value) => {
     const parsed = parseStockNumber(value);
-    return Number.isInteger(parsed) ? String(parsed) : parsed.toFixed(3).replace(/\.0+$/, '') ;
+    return Number.isInteger(parsed) ? String(parsed) : parsed.toFixed(3).replace(/\.0+$/, '');
   };
 
   const getVariantUnitSize = (variant) => {
@@ -294,30 +301,28 @@ const ProductDetails = () => {
 
   // review submitting section
   const submitReview = async () => {
+    if (!user) {
+      toast.error("Please login to submit a review.");
+      return;
+    }
+
     try {
       if (!rating) {
-        alert("Please select rating");
+        toast.error("Please select rating");
         return;
       }
-      console.log("Submitting Review:", {
-        product_id: product.id,
-        user_name: user?.name,
-        user_email: user?.email,
-        rating,
-        comment: reviewText,
-      });
+      const uId = user?.id || user?.user_id;
 
-      await api.post("/reviews", {
-        product_id: product.id,
+      await api.post(`/products/${product.id}/reviews`, {
         user_name: user?.name,
         user_email: user?.email,
-        user_id: user?.id || user?.user_id,
+        user_id: uId,
         rating: rating,
         comment: reviewText,
         review_image: reviewImage,
       });
 
-      alert("Review submitted successfully!");
+      toast.success("Review submitted successfully!");
 
       setRating(0);
       setReviewText("");
@@ -326,12 +331,11 @@ const ProductDetails = () => {
 
       // ⭐ IMPORTANT
       setUserReviewed(true);
-      fetchReviews(); // Refresh the reviews list immediately
+      fetchProduct(); // Refresh the product and reviews list immediately
     } catch (error) {
       console.error(error);
-      const errorMsg =
-        error.response?.data?.message || "Failed to submit review";
-      alert(errorMsg);
+      const errorMsg = error.response?.data?.message || "Failed to submit review";
+      toast.error(errorMsg);
 
       if (errorMsg.includes("already submitted")) {
         setUserReviewed(true);
@@ -340,23 +344,16 @@ const ProductDetails = () => {
     }
   };
 
-  //  check if the user already submitted a review for this product
   const checkUserReview = async () => {
     try {
       const uId = user?.id || user?.user_id;
-      if (!uId) {
+      if (!uId || !product?.customer_review) {
         setUserReviewed(false);
         return;
       }
 
-      const res = await api.get(`/reviews/check/${id}/${uId}`);
-      console.log("Check Review Response:", res.data);
-
-      if (res.data.hasReviewed) {
-        setUserReviewed(true);
-      } else {
-        setUserReviewed(false);
-      }
+      const hasReviewed = product.customer_review.some(r => String(r.user_id) === String(uId));
+      setUserReviewed(hasReviewed);
     } catch (err) {
       console.log("Review check error:", err);
       setUserReviewed(false);
@@ -382,10 +379,10 @@ const ProductDetails = () => {
   }, [id]);
 
   useEffect(() => {
-    if (user) {
+    if (user && product) {
       checkUserReview();
     }
-  }, [user, id]);
+  }, [user, product]);
 
   const displayImages = product ? getDisplayImages(product, selectedVariant) : [];
   const comboItems = getComboItems(product?.combo_items);
@@ -634,7 +631,7 @@ const ProductDetails = () => {
                       <div className="flex-1">
                         <p className="font-bold text-gray-800 text-sm">{item.name}</p>
                         {item.variant_info && (
-                           <p className="text-xs text-gray-500 font-semibold mt-0.5">{item.variant_info.weight} {item.variant_info.unit}</p>
+                          <p className="text-xs text-gray-500 font-semibold mt-0.5">{item.variant_info.weight} {item.variant_info.unit}</p>
                         )}
                         <div className="flex items-center gap-2 mt-1">
                           {item.offer_price > 0 || item.selling_price > 0 ? (
@@ -745,11 +742,17 @@ const ProductDetails = () => {
             <p className="text-green-600 font-semibold">
               You already reviewed this product
             </p>
+          ) : !user ? (
+            <button
+              onClick={() => toast.error("Please login to write a review")}
+              className="px-6 py-2 rounded-xl font-semibold bg-gray-500 text-white shadow-md hover:bg-gray-600 transition cursor-pointer"
+            >
+              Login to Write Review
+            </button>
           ) : (
             <button
               onClick={() => setShowReviewForm(!showReviewForm)}
-              className="px-6 py-2 rounded-xl font-semibold text-white 
-    bg-gradient-to-r from-primary-light to-secondary 
+              className="px-6 py-2 rounded-xl font-semibold bg-[#16a34a] text-white
     shadow-md hover:scale-105 transition cursor-pointer"
             >
               {showReviewForm ? "Hide Review Form" : "Write Review"}
@@ -825,7 +828,7 @@ const ProductDetails = () => {
 
             <button
               onClick={submitReview}
-              className="bg-gradient-to-r from-primary-light to-secondary text-white 
+              className="bg-[#16a34a] text-white
   px-6 py-3 rounded-xl font-semibold shadow-md hover:scale-105 transition"
             >
               Submit Review
@@ -926,8 +929,8 @@ const ProductDetails = () => {
                 autoplay={{ delay: 3000 }}
                 className="review-swiper pb-12"
               >
-                {reviews.map((review) => (
-                  <SwiperSlide key={review.id}>
+                {reviews.map((review, idx) => (
+                  <SwiperSlide key={review.user_id || idx}>
                     <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm h-full">
                       <div className="flex justify-between items-start mb-4">
                         <div>
@@ -954,13 +957,13 @@ const ProductDetails = () => {
                       </div>
 
                       <p className="text-gray-600 leading-relaxed italic">
-                        "{review.comment}"
+                        "{review.review || review.comment}"
                       </p>
 
-                      {review.review_image && (
+                      {(review.review_image || review.image) && (
                         <div className="mt-4 overflow-hidden rounded-xl border border-gray-100 w-fit">
                           <img
-                            src={review.review_image}
+                            src={review.review_image || review.image}
                             alt="Review"
                             className="w-40 h-40 object-cover hover:scale-110 transition-transform duration-500"
                           />
