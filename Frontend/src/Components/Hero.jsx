@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, EffectFade } from "swiper/modules";
-import api from "../api";
+import api, { getFileUrl } from "../api";
 import { Link } from "react-router-dom";
 import { useContext } from "react";
 import { StoreContext } from "../PrivateRouter/StoreContext";
@@ -79,12 +79,12 @@ export default function HeroSlider() {
                                 {slide.mobile_image && (
                                     <source
                                         media="(max-width:768px)"
-                                        srcSet={slide.mobile_image}
+                                        srcSet={getFileUrl(slide.mobile_image) || slide.mobile_image}
                                     />
                                 )}
 
                                 <img
-                                    src={slide.image}
+                                    src={getFileUrl(slide.image) || slide.image}
                                     alt={slide.title}
                                     className="w-full h-full object-cover scale-110 blur-[2px] brightness-90 transition-all duration-[10000ms] group-hover:scale-105"
                                 />

@@ -201,8 +201,9 @@ export function getFileUrl(rawPath, options = {}) {
       }
 
       if (/^\/(?:api\/)?uploads\//i.test(normalizedPath)) {
+        const backendOrigin = BACKEND_URL.replace(/\/+$/, "");
         return buildResolvedUrl(
-          `${parsed.origin}${normalizedPath}`,
+          `${backendOrigin}${normalizedPath}`,
           cacheBust,
           cacheKey
         );
@@ -218,6 +219,12 @@ export function getFileUrl(rawPath, options = {}) {
   // Windows path
   path = path.replace(/\\/g, "/");
 
+  // If https:// appears inside a malformed relative string, extract the real URL
+  const embeddedHttpIndex = path.search(/https?:\/\//i);
+  if (embeddedHttpIndex > 0) {
+    path = path.slice(embeddedHttpIndex);
+  }
+
   // Remove domain
   path = path.replace(/^https?:\/\/[^/]+/i, "");
 
@@ -227,6 +234,8 @@ export function getFileUrl(rawPath, options = {}) {
   // Normalize duplicate upload segments
   path = path.replace(/(?:^|\/)api\/uploads\/uploads\//gi, "$1api/uploads/");
   path = path.replace(/(?:^|\/)uploads\/uploads\//gi, "$1uploads/");
+
+  const hadLeadingSlash = rawPath.startsWith("/");
 
   // Remove leading slash
   path = path.replace(/^\/+/, "");
