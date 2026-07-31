@@ -1,8 +1,11 @@
 import { toast } from "react-hot-toast";
 import imageCompression from "browser-image-compression";
-import { BACKEND_URL } from "../api";
+import { API_URL } from "../api";
 
-const UPLOAD_URL = `${BACKEND_URL.replace(/\/$/, "")}/api/upload`;
+const trimmedApiUrl = API_URL.replace(/\/$/, "");
+const UPLOAD_URL = trimmedApiUrl.endsWith("/api")
+  ? `${trimmedApiUrl}/upload`
+  : `${trimmedApiUrl}/api/upload`;
 
 /**
  * Upload files to the GoDaddy server via upload.php
@@ -20,9 +23,11 @@ export const uploadFiles = async (files, category = "products") => {
   formData.append("category", category);
 
   const toastId = toast.loading(`Uploading ${files.length} file(s)...`);
+  const categoryUrl = category && category !== "products" ? `/${encodeURIComponent(category)}` : "";
+  const uploadUrl = `${UPLOAD_URL}${categoryUrl}`;
 
   try {
-    const res = await fetch(UPLOAD_URL, {
+    const res = await fetch(uploadUrl, {
       method: "POST",
       body: formData,
     });

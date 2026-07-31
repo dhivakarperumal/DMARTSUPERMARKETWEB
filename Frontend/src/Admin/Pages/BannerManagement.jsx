@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import api from "../../api";
+import api, { getFileUrl } from "../../api";
 import {
     FiPlus,
     FiSearch,
@@ -195,12 +195,12 @@ const BannerManagement = () => {
                                                     <span className="md:hidden text-[10px] font-black text-gray-400 uppercase tracking-widest">Visual Assets</span>
                                                     <div className="flex items-center gap-3 justify-end md:justify-start">
                                                         <div className="relative w-20 h-10 rounded-lg overflow-hidden border border-gray-100 bg-gray-100 shadow-sm">
-                                                            <img src={banner.image} className="w-full h-full object-cover" alt="" />
+                                                            <img src={getFileUrl(banner.image) || banner.image} className="w-full h-full object-cover" alt="" />
                                                             <div className="absolute top-0.5 right-0.5 bg-white/90 text-[7px] px-1 rounded font-black uppercase tracking-tighter shadow-sm border border-gray-100">D</div>
                                                         </div>
                                                         {banner.mobile_image && (
                                                             <div className="relative w-8 h-12 rounded-lg overflow-hidden border border-gray-100 bg-gray-100 shadow-sm">
-                                                                <img src={banner.mobile_image} className="w-full h-full object-cover" alt="" />
+                                                                <img src={getFileUrl(banner.mobile_image) || banner.mobile_image} className="w-full h-full object-cover" alt="" />
                                                                 <div className="absolute top-0.5 right-0.5 bg-white/90 text-[7px] px-1 rounded font-black uppercase tracking-tighter shadow-sm border border-gray-100">M</div>
                                                             </div>
                                                         )}
@@ -308,7 +308,7 @@ const BannerManagement = () => {
                                         />
                                         {currentBanner.image ? (
                                             <div className="absolute inset-0">
-                                                <img src={currentBanner.image} className="w-full h-full object-cover" alt="Desktop Preview" />
+                                                <img src={getFileUrl(currentBanner.image) || currentBanner.image} className="w-full h-full object-cover" alt="Desktop Preview" />
                                                 <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                                                     <FiUploadCloud size={24} />
                                                 </div>
@@ -333,7 +333,7 @@ const BannerManagement = () => {
                                         />
                                         {currentBanner.mobile_image ? (
                                             <div className="absolute inset-0">
-                                                <img src={currentBanner.mobile_image} className="w-full h-full object-cover" alt="Mobile Preview" />
+                                                <img src={getFileUrl(currentBanner.mobile_image) || currentBanner.mobile_image} className="w-full h-full object-cover" alt="Mobile Preview" />
                                                 <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                                                     <FiUploadCloud size={24} />
                                                 </div>

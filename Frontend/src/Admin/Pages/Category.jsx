@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ReactDOM from "react-dom";
-import api from "../../api";
+import api, { getFileUrl } from "../../api";
 import {
     FiPlus,
     FiEdit2,
     FiTrash2,
-    FiMoreVertical,
     FiX,
     FiImage,
     FiUploadCloud,
@@ -18,7 +17,6 @@ import {
     FiEyeOff,
     FiSliders
 } from "react-icons/fi";
-import imageCompression from "browser-image-compression";
 import { compressAndUpload } from "../../utils/uploadService";
 import { toast, Toaster } from "react-hot-toast";
 
@@ -26,10 +24,6 @@ const Category = () => {
     // ---- Global State ----
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        fetchCategories();
-    }, []);
 
     const fetchCategories = async () => {
         try {
@@ -42,6 +36,10 @@ const Category = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchCategories();
+    }, []);
 
     // ---- View & Pagination State ----
     const [viewMode, setViewMode] = useState("table"); // "grid" or "table"
@@ -168,9 +166,10 @@ const Category = () => {
             });
 
             if (urls.length > 0) {
+                const normalized = getFileUrl(urls[0]) || urls[0];
                 setFormData((p) => ({
                     ...p,
-                    image: urls[0],
+                    image: normalized,
                 }));
                 toast.success("Category image added!");
             }
@@ -356,7 +355,7 @@ const Category = () => {
                                     <div className="flex items-start justify-between mb-4 relative z-10">
                                         <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg ring-4 ring-white bg-gray-100 flex items-center justify-center relative shrink-0">
                                             {cat.images && cat.images.length > 0 ? (
-                                                <img src={Array.isArray(cat.images) ? cat.images[0] : cat.images} alt={cat.name} className="w-full h-full object-cover" />
+                                                <img src={getFileUrl(Array.isArray(cat.images) ? cat.images[0] : cat.images) || (Array.isArray(cat.images) ? cat.images[0] : cat.images)} alt={cat.name} className="w-full h-full object-cover" />
                                             ) : (
                                                 <FiImage className="text-gray-400 text-2xl" />
                                             )}
@@ -461,7 +460,7 @@ const Category = () => {
                                                         <div className="flex items-center gap-4 text-right md:text-left">
                                                             <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center shrink-0 border border-gray-200">
                                                                 {cat.images && cat.images.length > 0 ? (
-                                                                    <img src={Array.isArray(cat.images) ? cat.images[0] : cat.images} alt={cat.name} className="w-full h-full object-cover" />
+                                                                    <img src={getFileUrl(Array.isArray(cat.images) ? cat.images[0] : cat.images) || (Array.isArray(cat.images) ? cat.images[0] : cat.images)} alt={cat.name} className="w-full h-full object-cover" />
                                                                 ) : (
                                                                     <FiImage className="text-gray-400 text-xl" />
                                                                 )}
@@ -678,7 +677,7 @@ const Category = () => {
 
                                         {formData.image ? (
                                             <div className="relative w-full h-44 rounded-3xl overflow-hidden shadow-sm border border-gray-200 mb-3">
-                                                <img src={formData.image} alt="Category" className="w-full h-full object-cover" />
+                                                <img src={getFileUrl(formData.image) || formData.image} alt="Category" className="w-full h-full object-cover" />
                                                 <button
                                                     type="button"
                                                     onClick={removeImage}
@@ -786,9 +785,13 @@ const Category = () => {
                                         {/* Category image thumbnail */}
                                         <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-200 flex items-center justify-center shrink-0">
                                             {cat.images && cat.images.length > 0 ? (
-                                                <img src={Array.isArray(cat.images) ? cat.images[0] : cat.images} alt={cat.name} className="w-full h-full object-cover" />
+                                                <img
+                                                    src={getFileUrl(Array.isArray(cat.images) ? cat.images[0] : cat.images) || (Array.isArray(cat.images) ? cat.images[0] : cat.images)}
+                                                    alt={cat.name}
+                                                    className="w-full h-full object-cover"
+                                                />
                                             ) : (
-                                                <FiImage className="text-gray-400" />
+                                                <FiImage className="text-gray-400 text-2xl" />
                                             )}
                                         </div>
 

@@ -56,9 +56,33 @@ app.use(
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+const allowedUploadCategories = new Set([
+  "products",
+  "categories",
+  "banners",
+  "dealers",
+  "staff",
+  "reviews",
+  "videos",
+  "thumbnails",
+  "proxy-cache",
+]);
+
+const ensureUploadFolders = () => {
+  const uploadsRoot = path.join(__dirname, "uploads");
+  fs.mkdirSync(uploadsRoot, { recursive: true });
+  allowedUploadCategories.forEach((category) => {
+    const folder = path.join(uploadsRoot, category);
+    fs.mkdirSync(folder, { recursive: true });
+  });
+};
+
+ensureUploadFolders();
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const category = String(req.body.category || "products").trim();
+    const rawCategory = String(req.params.category || req.query.category || "products").trim().toLowerCase();
+    const category = allowedUploadCategories.has(rawCategory) ? rawCategory : "products";
     const targetFolder = path.join(__dirname, "uploads", category);
     fs.mkdirSync(targetFolder, { recursive: true });
     cb(null, targetFolder);
@@ -72,9 +96,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-app.post("/api/upload", upload.array("files[]"), (req, res) => {
+const handleUpload = (req, res) => {
   try {
-    const category = String(req.body.category || "products").trim();
+    const rawCategory = String(req.params.category || req.body.category || req.query.category || "products").trim().toLowerCase();
+    const category = allowedUploadCategories.has(rawCategory) ? rawCategory : "products";
     const uploadedFiles = req.files || [];
 
     if (!uploadedFiles.length) {
@@ -100,7 +125,10 @@ app.post("/api/upload", upload.array("files[]"), (req, res) => {
       error: error.message,
     });
   }
-});
+};
+
+app.post("/api/upload", upload.array("files[]"), handleUpload);
+app.post("/api/upload/:category", upload.array("files[]"), handleUpload);
 
 // Serve uploaded files via a safe manual route and fallback static middleware
 app.get(['/uploads/*', '/api/uploads/*'], (req, res) => {

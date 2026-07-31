@@ -47,6 +47,11 @@ const normalizeProductImagePath = (img) => {
   let text = String(img).trim();
   if (!text) return null;
 
+  const embeddedHttpIndex = text.search(/https?:\/\//i);
+  if (embeddedHttpIndex > 0) {
+    text = text.slice(embeddedHttpIndex);
+  }
+
   try {
     const parsedUrl = new URL(text);
     let normalizedPath = parsedUrl.pathname
