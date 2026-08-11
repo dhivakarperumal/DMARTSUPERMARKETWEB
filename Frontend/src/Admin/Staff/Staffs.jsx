@@ -13,6 +13,8 @@ import {
   FaEye,
   FaArrowLeft,
   FaSearch,
+  FaSpinner,
+  FaDownload,
 } from "react-icons/fa";
 
 const statCard =
@@ -21,6 +23,7 @@ const statCard =
 const Staffs = () => {
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
 
   const navigate = useNavigate();
 
@@ -89,23 +92,35 @@ const Staffs = () => {
   );
 
   useEffect(() => {
-    loadStaff();
-    setCurrentPage(1);
+    let mounted = true;
+    (async () => {
+      await loadStaff();
+      if (mounted) setCurrentPage(1);
+    })();
+
+    return () => {
+      mounted = false;
+    };
   }, [search, statusFilter]);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this staff member?")) return;
 
+    // Optimistic UI: remove immediately
+    const backup = [...staff];
+    setStaff((s) => s.filter((x) => x.id !== id));
+    setDeletingId(id);
+
     try {
       await api.delete(`/staff/${id}`);
-
       toast.success("Staff deleted successfully");
-
-      loadStaff();
     } catch (err) {
       console.error(err);
-
+      // revert
+      setStaff(backup);
       toast.error(err.response?.data?.error || "Delete failed");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -129,15 +144,17 @@ const Staffs = () => {
         <div className="flex items-center gap-4">
 
           <button
+            type="button"
             onClick={() => navigate("/admin/settings")}
             className="w-11 h-11 rounded-full bg-[#1b7f29] hover:bg-[#166321] text-white flex items-center justify-center shadow-md transition"
+            aria-label="Back to settings"
           >
             <FaArrowLeft />
           </button>
 
           <div>
             <h2 className="text-3xl font-extrabold text-[#123524]">
-              Staff & Trainers
+              Staff 
             </h2>
 
             <p className="text-sm text-gray-500 mt-1">
@@ -147,8 +164,10 @@ const Staffs = () => {
         </div>
 
         <button
+          type="button"
           onClick={() => navigate("/admin/addstaff")}
           className="px-6 py-3 rounded-xl bg-[#1b7f29] hover:bg-[#166321] text-white font-bold shadow-lg transition"
+          aria-label="Add staff"
         >
           + Add Staff
         </button>
@@ -271,15 +290,6 @@ const Staffs = () => {
               <th className="px-6 py-4 text-left font-bold text-white">
                 Role
               </th>
-
-              <th className="px-6 py-4 text-left font-bold text-white">
-                Time In
-              </th>
-
-              <th className="px-6 py-4 text-left font-bold text-white">
-                Time Out
-              </th>
-
               <th className="px-6 py-4 text-center font-bold text-white">
                 Status
               </th>
@@ -382,18 +392,6 @@ const Staffs = () => {
 
                   </td>
 
-                  <td className="px-6 py-5 text-gray-600">
-
-                    {s.timeIn || "--"}
-
-                  </td>
-
-                  <td className="px-6 py-5 text-gray-600">
-
-                    {s.timeOut || "--"}
-
-                  </td>
-
                   <td className="px-6 py-5 text-center">
 
                     <span
@@ -412,28 +410,55 @@ const Staffs = () => {
                     <div className="flex justify-center gap-2">
 
                       <button
+                        type="button"
+                        title="View Details"
+                        aria-label={`View staff ${s.name}`}
                         onClick={() =>
                           navigate(`/admin/viewstaff/${s.id}`)
                         }
-                        className="w-10 h-10 rounded-lg bg-[#e8f6ea] text-[#1b7f29] hover:bg-[#d8efd9] transition"
+                        className={`w-10 h-10 rounded-lg bg-[#e8f6ea] text-[#1b7f29] hover:bg-[#d8efd9] transition ${deletingId===s.id? 'opacity-50 cursor-not-allowed':''}`}
+                        disabled={deletingId===s.id}
                       >
                         <FaEye className="mx-auto" />
                       </button>
 
                       <button
+                        type="button"
+                        title="Edit"
+                        aria-label={`Edit staff ${s.name}`}
                         onClick={() =>
                           navigate(`/admin/addstaff/${s.id}`)
                         }
-                        className="w-10 h-10 rounded-lg bg-[#fff3e5] text-[#f57c00] hover:bg-[#ffe2bc] transition"
+                        className={`w-10 h-10 rounded-lg bg-[#fff3e5] text-[#f57c00] hover:bg-[#ffe2bc] transition ${deletingId===s.id? 'opacity-50 cursor-not-allowed':''}`}
+                        disabled={deletingId===s.id}
                       >
                         <FaEdit className="mx-auto" />
                       </button>
 
                       <button
-                        onClick={() => handleDelete(s.id)}
-                        className="w-10 h-10 rounded-lg bg-[#fdecec] text-red-600 hover:bg-[#fad6d6] transition"
+                        type="button"
+                        title="Download ID"
+                        aria-label={`Download ID card for ${s.name}`}
+                        onClick={() => window.open(`/#/admin/staff/idcard/${s.id}?download=1`, "_blank")}
+                        className={`w-10 h-10 rounded-lg bg-[#e6f0ff] text-[#1e67d1] hover:bg-[#d9e8ff] transition ${deletingId===s.id? 'opacity-50 cursor-not-allowed':''}`}
+                        disabled={deletingId===s.id}
                       >
-                        <FaTrash className="mx-auto" />
+                        <FaDownload className="mx-auto" />
+                      </button>
+
+                      <button
+                        type="button"
+                        title="Delete"
+                        aria-label={`Delete staff ${s.name}`}
+                        onClick={() => handleDelete(s.id)}
+                        className={`w-10 h-10 rounded-lg bg-[#fdecec] text-red-600 hover:bg-[#fad6d6] transition ${deletingId===s.id? 'opacity-50 cursor-not-allowed':''}`}
+                        disabled={deletingId===s.id}
+                      >
+                        {deletingId === s.id ? (
+                          <FaSpinner className="mx-auto animate-spin" />
+                        ) : (
+                          <FaTrash className="mx-auto" />
+                        )}
                       </button>
 
                     </div>
@@ -560,55 +585,52 @@ const Staffs = () => {
 
                 </div>
 
-                <div className="flex justify-between">
+                {/* Time In / Time Out removed per UI request */}
 
-                  <span className="text-gray-500">
-                    Time In
-                  </span>
-
-                  <span className="text-gray-700">
-
-                    {s.timeIn || "--"}
-
-                  </span>
-
-                </div>
-
-                <div className="flex justify-between">
-
-                  <span className="text-gray-500">
-                    Time Out
-                  </span>
-
-                  <span className="text-gray-700">
-
-                    {s.timeOut || "--"}
-
-                  </span>
-
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 pt-4">
+                <div className="grid grid-cols-4 gap-3 pt-4">
 
                   <button
+                    type="button"
                     onClick={() => navigate(`/admin/viewstaff/${s.id}`)}
-                    className="py-3 rounded-xl bg-[#e8f6ea] text-[#1b7f29] hover:bg-[#d8efd9] transition"
+                    className={`py-3 rounded-xl bg-[#e8f6ea] text-[#1b7f29] hover:bg-[#d8efd9] transition ${deletingId===s.id? 'opacity-50 cursor-not-allowed':''}`}
+                    disabled={deletingId===s.id}
+                    title="View Details"
                   >
                     <FaEye className="mx-auto" />
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => navigate(`/admin/addstaff/${s.id}`)}
-                    className="py-3 rounded-xl bg-[#fff3e5] text-[#f57c00] hover:bg-[#ffe2bc] transition"
+                    className={`py-3 rounded-xl bg-[#fff3e5] text-[#f57c00] hover:bg-[#ffe2bc] transition ${deletingId===s.id? 'opacity-50 cursor-not-allowed':''}`}
+                    disabled={deletingId===s.id}
+                    title="Edit"
                   >
                     <FaEdit className="mx-auto" />
                   </button>
 
                   <button
-                    onClick={() => handleDelete(s.id)}
-                    className="py-3 rounded-xl bg-[#fdecec] text-red-600 hover:bg-[#fad6d6] transition"
+                    type="button"
+                    onClick={() => window.open(`/#/admin/staff/idcard/${s.id}?download=1`, "_blank")}
+                    className={`py-3 rounded-xl bg-[#e6f0ff] text-[#1e67d1] hover:bg-[#d9e8ff] transition ${deletingId===s.id? 'opacity-50 cursor-not-allowed':''}`}
+                    disabled={deletingId===s.id}
+                    title="Download ID"
                   >
-                    <FaTrash className="mx-auto" />
+                    <FaDownload className="mx-auto" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(s.id)}
+                    className={`py-3 rounded-xl bg-[#fdecec] text-red-600 hover:bg-[#fad6d6] transition ${deletingId===s.id? 'opacity-50 cursor-not-allowed':''}`}
+                    disabled={deletingId===s.id}
+                    title="Delete"
+                  >
+                    {deletingId === s.id ? (
+                      <FaSpinner className="mx-auto animate-spin" />
+                    ) : (
+                      <FaTrash className="mx-auto" />
+                    )}
                   </button>
 
                 </div>

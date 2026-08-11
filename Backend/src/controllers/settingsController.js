@@ -301,9 +301,25 @@ exports.getTaxSettings = async (req, res) => {
     const pool = getPool();
     const [rows] = await pool.query("SELECT * FROM tax_settings LIMIT 1");
     if (rows.length === 0) {
-      return res.status(200).json({ success: true, data: {} });
+      return res.status(200).json({
+        success: true,
+        data: {
+          enable_gst: 1,
+          default_gst_percentage: "5%",
+          tax_mode: "Tax Exclusive"
+        }
+      });
     }
-    return res.status(200).json({ success: true, data: rows[0] });
+
+    const row = rows[0];
+    const normalized = {
+      ...row,
+      enable_gst: row.enable_gst === 0 || row.enable_gst === false ? 0 : 1,
+      default_gst_percentage: row.default_gst_percentage || "5%",
+      tax_mode: row.tax_mode || "Tax Exclusive"
+    };
+
+    return res.status(200).json({ success: true, data: normalized });
   } catch (error) {
     console.error("Error fetching tax settings:", error);
     res.status(500).json({ success: false, message: "Internal server error" });

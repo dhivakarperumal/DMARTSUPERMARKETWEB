@@ -329,6 +329,98 @@ const insertStockLedgerEntry = async (connection, payload) => {
     return insertRow(connection, 'stock_ledger', data);
 };
 
+const parsePricingOptions = (pricingOptions) => {
+    if (!pricingOptions) return [];
+    if (Array.isArray(pricingOptions)) return pricingOptions;
+    try {
+        return JSON.parse(pricingOptions);
+    } catch {
+        return [];
+    }
+};
+
+const resolveProductRow = async (connection, item) => {
+    const candidateIds = [];
+    if (item.product_id) candidateIds.push(item.product_id);
+
+    const matchStrings = [item.barcode, item.sku, item.product_code];
+    for (const value of matchStrings) {
+        if (value) candidateIds.push(value);
+    }
+
+    if (candidateIds.length === 0) return null;
+
+    let query = `SELECT id, pricing_options FROM products WHERE `;
+    const filters = [];
+    const params = [];
+
+    if (item.product_id) {
+        filters.push('id = ?');
+        params.push(item.product_id);
+    }
+    if (item.product_code) {
+        filters.push('product_code = ?');
+        params.push(item.product_code);
+    }
+    if (item.barcode) {
+        filters.push('barcode = ?');
+        params.push(item.barcode);
+    }
+    if (item.sku) {
+        filters.push('sku = ?');
+        params.push(item.sku);
+    }
+
+    query += filters.join(' OR ') + ' LIMIT 1';
+    const [rows] = await connection.query(query, params);
+    return rows[0] || null;
+};
+
+const updateProductStock = async (connection, item, deltaQuantity) => {
+    if (!item || !deltaQuantity || deltaQuantity === 0) return;
+    const product = await resolveProductRow(connection, item);
+    if (!product || !product.id) return;
+
+    let options = parsePricingOptions(product.pricing_options);
+    if (!Array.isArray(options)) options = [];
+
+    if (options.length > 0) {
+        const itemUnit = String(item.unit || '').trim().toLowerCase();
+        for (const opt of options) {
+            const optUnit = String(opt.unit || '').trim().toLowerCase();
+            if (itemUnit && optUnit && itemUnit === optUnit) {
+                opt.stock_quantity = Math.max(0, (parseFloat(opt.stock_quantity) || 0) + deltaQuantity);
+                break;
+            }
+        }
+    }
+
+    const optionsString = JSON.stringify(options);
+    await connection.query(
+        `UPDATE products SET total_stock = COALESCE(total_stock, 0) + ?, stock_quantity = COALESCE(stock_quantity, 0) + ?, pricing_options = ? WHERE id = ?`,
+        [deltaQuantity, deltaQuantity, optionsString, product.id]
+    );
+};
+
+const adjustPurchaseItemStock = async (connection, item, multiplier, purchase_id, grn_number, created_by, transactionType) => {
+    const quantity = (parseFloat(item.quantity) || 0) + (parseFloat(item.free_quantity) || 0);
+    if (quantity === 0) return;
+    const delta = quantity * multiplier;
+
+    await insertStockLedgerEntry(connection, {
+        product_id: item.product_id || null,
+        batch_number: item.batch_number || null,
+        transaction_type: transactionType,
+        reference_id: purchase_id,
+        reference_number: grn_number,
+        quantity: delta,
+        expiry_date: item.expiry_date || null,
+        created_by: created_by || 'Admin'
+    });
+
+    await updateProductStock(connection, item, delta);
+};
+
 /* =========================================
    DASHBOARD
 ========================================= */
@@ -565,6 +657,100 @@ const getPurchaseById = async (req, res) => {
     }
 };
 
+const updatePurchase = async (req, res) => {
+    const pool = getPool();
+    const purchase_id = req.params.id;
+    const {
+        supplier_id, po_id, supplier_invoice_no, invoice_date, warehouse, purchase_type,
+        subtotal, discount_percent, discount_amount, tax_amount, transport_charge, other_charge, round_off, net_amount,
+        paid_amount, payment_method, payment_status, due_date, transaction_number, reference_number, notes,
+        items, created_by
+    } = req.body;
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const [[purchase]] = await connection.query(`SELECT * FROM purchases WHERE id=?`, [purchase_id]);
+        if (!purchase) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'Purchase not found' });
+        }
+
+        const [oldItems] = await connection.query(`SELECT * FROM purchase_items WHERE purchase_id=?`, [purchase_id]);
+        for (const item of oldItems) {
+            await adjustPurchaseItemStock(connection, item, -1, purchase_id, purchase.grn_number, created_by || 'Admin', 'Purchase Update Reversal');
+        }
+
+        await connection.query(`DELETE FROM purchase_items WHERE purchase_id=?`, [purchase_id]);
+
+        if (items && items.length > 0) {
+            for (const item of items) {
+                await insertRow(connection, 'purchase_items', {
+                    purchase_id,
+                    product_id: item.product_id || null,
+                    product_name: item.product_name,
+                    barcode: item.barcode || null,
+                    sku: item.sku || null,
+                    batch_number: item.batch_number || null,
+                    lot_number: item.lot_number || null,
+                    quantity: item.quantity,
+                    free_quantity: item.free_quantity || 0,
+                    unit: item.unit || 'Pcs',
+                    unit_price: item.unit_price,
+                    landing_cost: item.landing_cost || item.unit_price,
+                    discount_percent: item.discount_percent || 0,
+                    discount_amount: item.discount_amount || 0,
+                    tax_percent: item.tax_percent || 0,
+                    tax_amount: item.tax_amount || 0,
+                    mrp: item.mrp || 0,
+                    selling_price: item.selling_price || 0,
+                    expiry_date: item.expiry_date || null,
+                    manufacturing_date: item.manufacturing_date || null,
+                    total_price: item.total_price
+                });
+                await adjustPurchaseItemStock(connection, item, 1, purchase_id, purchase.grn_number, created_by || 'Admin', 'Purchase Update');
+            }
+        }
+
+        await connection.query(`UPDATE purchases SET supplier_id=?, po_id=?, supplier_invoice_no=?, invoice_date=?, warehouse=?, purchase_type=?, subtotal=?, discount_percent=?, discount_amount=?, tax_amount=?, transport_charge=?, other_charge=?, round_off=?, net_amount=?, paid_amount=?, balance_amount=?, payment_method=?, payment_status=?, due_date=?, transaction_number=?, reference_number=?, notes=? WHERE id=?`, [
+            supplier_id,
+            po_id || null,
+            supplier_invoice_no,
+            invoice_date,
+            warehouse || 'Main Warehouse',
+            purchase_type || 'Credit Purchase',
+            subtotal || 0,
+            discount_percent || 0,
+            discount_amount || 0,
+            tax_amount || 0,
+            transport_charge || 0,
+            other_charge || 0,
+            round_off || 0,
+            net_amount || 0,
+            paid_amount || 0,
+            (parseFloat(net_amount) || 0) - (parseFloat(paid_amount) || 0),
+            payment_method || 'Credit',
+            payment_status || 'Unpaid',
+            due_date || null,
+            transaction_number || null,
+            reference_number || null,
+            notes || null,
+            purchase_id
+        ]);
+
+        await connection.commit();
+        await logAudit(pool, 'UPDATE', 'Purchase', purchase_id, purchase.grn_number, `GRN ${purchase.grn_number} updated for supplier ${supplier_id}`);
+        res.json({ success: true, message: 'Purchase updated successfully', purchase_id });
+    } catch (error) {
+        if (connection) await connection.rollback();
+        res.status(500).json({ success: false, message: 'Error updating purchase', error: error.message });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 const createPurchase = async (req, res) => {
     const pool = getPool();
     const {
@@ -613,7 +799,7 @@ const createPurchase = async (req, res) => {
 
         const purchase_id = purchaseResult.insertId;
 
-        // 2. Insert items + stock ledger
+        // 2. Insert items + stock ledger + inventory update
         if (items && items.length > 0) {
             for (const item of items) {
                 await insertRow(connection, 'purchase_items', {
@@ -640,16 +826,7 @@ const createPurchase = async (req, res) => {
                     total_price: item.total_price
                 });
 
-                await insertStockLedgerEntry(connection, {
-                    product_id: item.product_id || null,
-                    batch_number: item.batch_number || null,
-                    transaction_type: 'Purchase',
-                    reference_id: purchase_id,
-                    reference_number: grn_number,
-                    quantity: item.quantity,
-                    expiry_date: item.expiry_date || null,
-                    created_by: created_by || 'Admin'
-                });
+                await adjustPurchaseItemStock(connection, item, 1, purchase_id, grn_number, created_by || 'Admin', 'Purchase');
             }
         }
 
@@ -926,7 +1103,7 @@ module.exports = {
     getDashboardStats,
     getAllSuppliers, getSupplierById, addSupplier, updateSupplier, deleteSupplier,
     getAllPurchaseOrders, createPurchaseOrder, updatePurchaseOrder,
-    getAllPurchases, getPurchaseById, createPurchase,
+    getAllPurchases, getPurchaseById, createPurchase, updatePurchase,
     getAllPayments, addPayment,
     getAllReturns, createReturn,
     getPurchaseReport, getStockLedger,

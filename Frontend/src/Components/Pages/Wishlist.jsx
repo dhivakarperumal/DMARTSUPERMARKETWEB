@@ -146,11 +146,11 @@ export default function WishList() {
                       {/* Pricing */}
                       <div className="mt-3 flex items-center gap-2">
                         <span className="text-lg font-bold text-[#0e6827]">
-                          ₹{price > 0 ? price.toFixed(2) : "—"}
+                          ₹{price > 0 ? Number(price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
                         </span>
                         {mrp > price && (
                           <span className="text-sm text-gray-400 line-through">
-                            ₹{mrp.toFixed(2)}
+                            ₹{Number(mrp).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         )}
                       </div>

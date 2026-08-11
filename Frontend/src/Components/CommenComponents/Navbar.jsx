@@ -261,7 +261,7 @@ const Navbar = () => {
                   <p className="text-sm font-bold text-gray-800 flex items-center gap-1 group-hover:text-green-800 transition">
                     Cart
                   </p>
-                  <p className="text-xs text-gray-500">₹{cartTotal.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">₹{Number(cartTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
               </button>
 
@@ -647,7 +647,7 @@ const Navbar = () => {
                             </span>
 
                             <span className="text-2xl font-bold text-[#ffc107]">
-                              ₹{cartTotal.toLocaleString()}
+                              ₹{Number(cartTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
 
                           </div>

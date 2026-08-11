@@ -21,7 +21,14 @@ const initOrdersTable = async () => {
                 payment_id VARCHAR(255) DEFAULT NULL,
                 shipping_address JSON,
                 total_amount DECIMAL(10, 2) NOT NULL,
-                status VARCHAR(50) DEFAULT 'Paid',
+                status VARCHAR(50) DEFAULT 'Order Placed',
+                coupon_code VARCHAR(100) DEFAULT NULL,
+                coupon_discount DECIMAL(10, 2) DEFAULT 0.00,
+                subtotal_before_discount DECIMAL(10, 2) DEFAULT NULL,
+                pickup_date DATE DEFAULT NULL,
+                pickup_time VARCHAR(20) DEFAULT NULL,
+                pickup_person_name VARCHAR(255) DEFAULT NULL,
+                pickup_person_phone VARCHAR(50) DEFAULT NULL,
                 created_by CHAR(36) DEFAULT NULL,
                 updated_by CHAR(36) DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -41,6 +48,12 @@ const initOrdersTable = async () => {
             try { await connection.query(sql); } catch (e) { /* column may already exist */ }
         }
 
+        try {
+            await connection.query("ALTER TABLE orders MODIFY COLUMN status VARCHAR(50) DEFAULT 'Order Placed'");
+        } catch (e) {
+            // ignore if modify is not supported or column already has correct default
+        }
+
         // Ensure optional logistic and cancellation columns exist
         const extraAlters = [
             "ALTER TABLE orders ADD COLUMN tracking_number VARCHAR(255)",
@@ -53,6 +66,10 @@ const initOrdersTable = async () => {
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(100) DEFAULT NULL",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_discount DECIMAL(10, 2) DEFAULT 0.00",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal_before_discount DECIMAL(10, 2) DEFAULT NULL",
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS pickup_date DATE DEFAULT NULL",
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS pickup_time VARCHAR(20) DEFAULT NULL",
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS pickup_person_name VARCHAR(255) DEFAULT NULL",
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS pickup_person_phone VARCHAR(50) DEFAULT NULL",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS unique_id CHAR(36) UNIQUE",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS created_by CHAR(36) DEFAULT NULL",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_by CHAR(36) DEFAULT NULL"
@@ -111,34 +128,75 @@ const createOrder = async (req, res) => {
             user_id, customer_name, customer_phone, customer_email,
             order_type, payment_method, payment_status, payment_id,
             shipping_address, street_address, city, district, state, zip_code, country,
-            total_amount, status, items, delivery_charge, distance_km, coupon_code, coupon_discount, subtotal_before_discount
-        } = req.body;
+            total_amount, status, items, delivery_charge, distance_km, coupon_code, coupon_discount, subtotal_before_discount,
+            pickup_date, pickup_time, pickup_person_name, pickup_person_phone
+        } = req.body || {};
 
         const order_id = 'ORD-' + Date.now() + Math.floor(Math.random() * 1000);
 
-        // Build shipping address — accept either a JSON object or individual fields
         let shippingData = null;
         if (shipping_address) {
             shippingData = JSON.stringify(shipping_address);
         } else if (street_address) {
-            shippingData = JSON.stringify({ street: street_address, city, district, state, zip: zip_code, country: country || 'India' });
+            shippingData = JSON.stringify({ street: street_address, city: city || district || '', district: district || '', state: state || '', zip: zip_code, country: country || 'India' });
         }
 
         const unique_id = crypto.randomUUID();
         const created_by = req.headers['x-user-id'] || null;
         const updated_by = req.headers['x-user-id'] || null;
 
+        let validatedCoupon = null;
+        if (coupon_code) {
+            const [foundCoupons] = await connection.query(
+                "SELECT * FROM coupons WHERE code = ? LIMIT 1",
+                [coupon_code]
+            );
+
+            if (foundCoupons.length === 0) {
+                throw new Error('Invalid coupon code');
+            }
+
+            const coupon = foundCoupons[0];
+            if (coupon.status !== 'active') {
+                throw new Error('Coupon is not active');
+            }
+
+            if (coupon.expiry_date && new Date(coupon.expiry_date) < new Date()) {
+                throw new Error('Coupon has expired');
+            }
+
+            const globalLimit = coupon.usage_limit_global ? parseInt(coupon.usage_limit_global, 10) : null;
+            const currentUsage = coupon.usage_count ? parseInt(coupon.usage_count, 10) : 0;
+            if (globalLimit !== null && currentUsage >= globalLimit) {
+                throw new Error('Coupon usage limit reached');
+            }
+
+            const perCustomerLimit = coupon.usage_limit_per_customer ? parseInt(coupon.usage_limit_per_customer, 10) : null;
+            if (perCustomerLimit !== null && user_id) {
+                const [userUsageRows] = await connection.query(
+                    "SELECT COUNT(*) AS count FROM orders WHERE user_id = ? AND coupon_code = ?",
+                    [user_id, coupon_code]
+                );
+                const userUsage = parseInt(userUsageRows[0]?.count || 0, 10);
+                if (userUsage >= perCustomerLimit) {
+                    throw new Error('Coupon usage limit per customer reached');
+                }
+            }
+
+            validatedCoupon = coupon;
+        }
+
         await connection.beginTransaction();
 
         await connection.query(`
-            INSERT INTO orders (unique_id, order_id, user_id, customer_name, customer_phone, customer_email, order_type, payment_method, payment_status, payment_id, shipping_address, total_amount, status, delivery_charge, distance_km, coupon_code, coupon_discount, subtotal_before_discount, created_by, updated_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO orders (unique_id, order_id, user_id, customer_name, customer_phone, customer_email, order_type, payment_method, payment_status, payment_id, shipping_address, total_amount, status, delivery_charge, distance_km, coupon_code, coupon_discount, subtotal_before_discount, pickup_date, pickup_time, pickup_person_name, pickup_person_phone, created_by, updated_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             unique_id,
             order_id,
             user_id || null,
             customer_name,
-            customer_phone || "",
+            customer_phone || '',
             customer_email || null,
             order_type || 'Shop',
             payment_method || 'Cash',
@@ -146,136 +204,150 @@ const createOrder = async (req, res) => {
             payment_id || null,
             shippingData,
             total_amount,
-            status || 'Paid',
+            normalizeOrderStatus(status) || 'Order Placed',
             delivery_charge || 0,
             distance_km || null,
             coupon_code || null,
             coupon_discount || 0,
             subtotal_before_discount || null,
+            pickup_date || null,
+            pickup_time || null,
+            pickup_person_name || null,
+            pickup_person_phone || null,
             created_by,
             updated_by
         ]);
 
-        if (items && items.length > 0) {
-            // check which columns exist on order_items to avoid inserting into missing columns
-            let orderItemColsSet = new Set();
-            try {
-                const [cols] = await connection.query("SHOW COLUMNS FROM order_items");
-                orderItemColsSet = new Set(cols.map(c => c.Field));
-            } catch (e) {
-                // table may not exist yet; initOrdersTable should have created it above
+        const [orderItemCols] = await connection.query("SHOW COLUMNS FROM order_items LIKE 'image'");
+        const orderItemColsSet = new Set(orderItemCols.map((col) => col.Field));
+
+        if (validatedCoupon) {
+            await connection.query(
+                `UPDATE coupons SET usage_count = COALESCE(usage_count, 0) + 1 WHERE id = ?`,
+                [validatedCoupon.id]
+            );
+        }
+
+        for (const item of items || []) {
+            const cols = ['order_id','product_id','name','variant_info','variant_color','variant_size','price','quantity','total'];
+            const vals = [
+                order_id,
+                item.product_id || item.id,
+                item.name,
+                item.variant_info ? JSON.stringify(item.variant_info) : null,
+                item.variant_color || item.colorName || null,
+                item.variant_size || item.size || null,
+                item.price,
+                item.quantity,
+                item.total || (parseFloat(item.price) * item.quantity)
+            ];
+
+            if (orderItemColsSet.has('image')) {
+                cols.push('image');
+                vals.push(item.image || null);
             }
 
-            for (const item of items) {
-                const cols = ['order_id','product_id','name','variant_info','variant_color','variant_size','price','quantity','total'];
-                const vals = [
-                    order_id,
-                    item.product_id || item.id,
-                    item.name,
-                    item.variant_info ? JSON.stringify(item.variant_info) : null,
-                    item.variant_color || item.colorName || null,
-                    item.variant_size || item.size || null,
-                    item.price,
-                    item.quantity,
-                    item.total || (parseFloat(item.price) * item.quantity)
-                ];
+            const placeholders = cols.map(() => '?').join(', ');
+            const colList = cols.join(', ');
+            await connection.query(`INSERT INTO order_items (${colList}) VALUES (${placeholders})`, vals);
 
-                if (orderItemColsSet.has('image')) {
-                    cols.push('image');
-                    vals.push(item.image || null);
-                }
+            const pId = item.product_id || item.id;
+            if (pId) {
+                const [prodRows] = await connection.query(
+                    "SELECT * FROM products WHERE id = ? OR product_id = ? LIMIT 1",
+                    [pId, pId]
+                );
+                if (prodRows.length > 0) {
+                    const prod = prodRows[0];
+                    const dbNumericId = prod.id;
+                    let updatedPricingOptions = prod.pricing_options;
 
-                const placeholders = cols.map(() => '?').join(', ');
-                const colList = cols.join(', ');
-                await connection.query(`INSERT INTO order_items (${colList}) VALUES (${placeholders})`, vals);
-
-                // Reduce stock in products table (including variants)
-                const pId = item.product_id || item.id;
-                if (pId) {
-                    // Try to find by numeric `id` or by `product_id` (UUID) so API callers can send either
-                    const [prodRows] = await connection.query(
-                        "SELECT * FROM products WHERE id = ? OR product_id = ? LIMIT 1",
-                        [pId, pId]
+                    const consumedStock = calculateStockConsumptionInBaseUnits(
+                        item.variant_info?.weight || item.variant_info?.quantity || item.variant_size || item.size || null,
+                        item.variant_info?.unit || item.variant_info?.measurementUnit || item.variant_unit || null,
+                        item.quantity
                     );
-                    if (prodRows.length > 0) {
-                        const prod = prodRows[0];
-                        // Use the actual numeric id from DB for subsequent updates
-                        const dbNumericId = prod.id;
-                        let updatedPricingOptions = prod.pricing_options;
 
-                        // Determine consumption based on variant_info if present, otherwise fallback to quantity
-                        const consumedStock = calculateStockConsumptionInBaseUnits(
-                            item.variant_info?.weight || item.variant_info?.quantity || item.variant_size || item.size || null,
-                            item.variant_info?.unit || item.variant_info?.measurementUnit || item.variant_unit || null,
-                            item.quantity
+                    const finalConsumedStock = consumedStock > 0 ? consumedStock : (parseFloat(item.quantity) || 0);
+                    const productCode = String(prod.product_code || '').trim().toUpperCase();
+                    const isComboProduct = productCode.startsWith('SPMC') || String(prod.type || '').trim() === '1';
+
+                    if (isComboProduct) {
+                        await connection.query(
+                            `UPDATE products 
+                             SET total_stock = GREATEST(0, IFNULL(total_stock, 0) - ?),
+                                 stock_quantity = GREATEST(0, IFNULL(stock_quantity, 0) - ?)
+                             WHERE id = ?`,
+                            [finalConsumedStock, finalConsumedStock, dbNumericId]
                         );
+                    } else {
+                        if (item.variant_info && prod.pricing_options) {
+                            try {
+                                const options = typeof prod.pricing_options === 'string' ? JSON.parse(prod.pricing_options) : prod.pricing_options;
+                                if (Array.isArray(options)) {
+                                    for (let opt of options) {
+                                        const optWeight = String(opt.weight_volume || opt.quantity || '').trim().toLowerCase();
+                                        const optUnit = String(opt.unit || '').trim().toLowerCase();
+                                        const itemWeight = String(item.variant_info?.weight || item.variant_info?.quantity || '').trim().toLowerCase();
+                                        const itemUnit = String(item.variant_info?.unit || item.variant_info?.measurementUnit || '').trim().toLowerCase();
 
-                        // When no variant information exists, consume by quantity directly
-                        const finalConsumedStock = consumedStock > 0 ? consumedStock : (parseFloat(item.quantity) || 0);
-
-                        // Detect combo products by type or product_code prefix 'SPMC'
-                        const productCode = String(prod.product_code || '').trim().toUpperCase();
-                        const isComboProduct = productCode.startsWith('SPMC') || String(prod.type || '').trim() === '1';
-
-                        // If product is a combo, deduct from total_stock and keep stock_quantity in sync if present
-                        if (isComboProduct) {
-                            await connection.query(
-                                `UPDATE products 
-                                 SET total_stock = GREATEST(0, IFNULL(total_stock, 0) - ?),
-                                     stock_quantity = GREATEST(0, IFNULL(stock_quantity, 0) - ?)
-                                 WHERE id = ?`,
-                                [finalConsumedStock, finalConsumedStock, dbNumericId]
-                            );
-                        } else {
-                            // Parse and update variant stock if needed
-                            if (item.variant_info && prod.pricing_options) {
-                                try {
-                                    const options = typeof prod.pricing_options === 'string' ? JSON.parse(prod.pricing_options) : prod.pricing_options;
-                                    if (Array.isArray(options)) {
-                                        for (let opt of options) {
-                                            const optWeight = String(opt.weight_volume || opt.quantity || "").trim().toLowerCase();
-                                            const optUnit = String(opt.unit || "").trim().toLowerCase();
-                                            const itemWeight = String(item.variant_info?.weight || item.variant_info?.quantity || "").trim().toLowerCase();
-                                            const itemUnit = String(item.variant_info?.unit || item.variant_info?.measurementUnit || "").trim().toLowerCase();
-
-                                            if (optWeight === itemWeight && optUnit === itemUnit) {
-                                                opt.stock_quantity = Math.max(0, (parseFloat(opt.stock_quantity) || 0) - consumedStock);
-                                                break;
-                                            }
+                                        if (optWeight === itemWeight && optUnit === itemUnit) {
+                                            opt.stock_quantity = Math.max(0, (parseFloat(opt.stock_quantity) || 0) - consumedStock);
+                                            break;
                                         }
-                                        updatedPricingOptions = JSON.stringify(options);
                                     }
-                                } catch (e) {
-                                    console.error("Error parsing pricing_options for stock update:", e);
+                                    updatedPricingOptions = JSON.stringify(options);
                                 }
+                            } catch (e) {
+                                console.error('Error parsing pricing_options for stock update:', e);
                             }
-
-                            const optionsString = typeof updatedPricingOptions === 'object' ? JSON.stringify(updatedPricingOptions) : updatedPricingOptions;
-
-                            await connection.query(
-                                `UPDATE products 
-                                 SET total_stock = GREATEST(0, IFNULL(total_stock, 0) - ?),
-                                     stock_quantity = GREATEST(0, IFNULL(stock_quantity, 0) - ?),
-                                     pricing_options = ?
-                                 WHERE id = ?`,
-                                [consumedStock, consumedStock, optionsString, dbNumericId]
-                            );
                         }
+
+                        const optionsString = typeof updatedPricingOptions === 'object' ? JSON.stringify(updatedPricingOptions) : updatedPricingOptions;
+
+                        await connection.query(
+                            `UPDATE products 
+                             SET total_stock = GREATEST(0, IFNULL(total_stock, 0) - ?),
+                                 stock_quantity = GREATEST(0, IFNULL(stock_quantity, 0) - ?),
+                                 pricing_options = ?
+                             WHERE id = ?`,
+                            [consumedStock, consumedStock, optionsString, dbNumericId]
+                        );
                     }
                 }
             }
         }
 
         await connection.commit();
-        res.status(201).json({ success: true, message: "Order created successfully", order_id });
+        res.status(201).json({ success: true, message: 'Order created successfully', order_id });
     } catch (error) {
         await connection.rollback();
-        console.error("Error creating order:", error);
-        res.status(500).json({ success: false, message: "Server error", error: error.message, stack: error.stack, sqlMessage: error.sqlMessage });
+        console.error('Error creating order:', error);
+        res.status(500).json({ success: false, message: 'Server error', error: error.message, stack: error.stack, sqlMessage: error.sqlMessage });
     } finally {
         connection.release();
     }
 };
+
+const normalizeOrderStatus = (status) => {
+    if (!status) return status;
+    const normalized = String(status).trim();
+    if (!normalized) return status;
+
+    const lower = normalized.toLowerCase();
+    if (lower === 'paid') return 'Order Placed';
+    if (lower === 'ready to deliver' || lower === 'ready_to_deliver' || lower === 'ready for delivery') return 'Ready to Deliver';
+    if (lower === 'out for delivery') return 'Out for Delivery';
+    if (lower === 'order placed') return 'Order Placed';
+    if (lower === 'orderplaced') return 'Order Placed';
+
+    return normalized;
+};
+
+const normalizeOrder = (order) => ({
+    ...order,
+    status: normalizeOrderStatus(order.status)
+});
 
 const getAllOrders = async (req, res) => {
     try {
@@ -286,13 +358,18 @@ const getAllOrders = async (req, res) => {
         let params = [];
         
         if (status && status !== "All") {
-            query += " WHERE status = ?";
-            params.push(status);
+            if (status === "Order Placed") {
+                query += " WHERE status IN (?, 'Paid')";
+                params.push(status);
+            } else {
+                query += " WHERE status = ?";
+                params.push(status);
+            }
         }
         query += " ORDER BY created_at DESC";
         
         const [orders] = await pool.query(query, params);
-        res.status(200).json(orders);
+        res.status(200).json(orders.map(normalizeOrder));
     } catch (error) {
         console.error("Error fetching orders:", error);
         res.status(500).json({ message: "Server error" });
@@ -315,7 +392,7 @@ const getUserOrders = async (req, res) => {
                 "SELECT * FROM order_items WHERE order_id = ?",
                 [order.order_id]
             );
-            return { ...order, items };
+            return { ...normalizeOrder(order), items };
         }));
         res.status(200).json(ordersWithItems);
     } catch (error) {
@@ -333,7 +410,7 @@ const getOrderById = async (req, res) => {
         if (!orders || orders.length === 0) {
             return res.status(404).json({ message: "Order not found" });
         }
-        const order = orders[0];
+        const order = normalizeOrder(orders[0]);
         const [items] = await pool.query("SELECT * FROM order_items WHERE order_id = ?", [order.order_id]);
         res.status(200).json({ ...order, items });
     } catch (error) {
@@ -342,12 +419,62 @@ const getOrderById = async (req, res) => {
     }
 };
 
+const getAllowedStatusTransitionsForOrder = (order = {}) => {
+    const isPickupOrder = order.order_type === "Pickup" || order.delivery_method === "pickup";
+
+    if (isPickupOrder) {
+        return {
+            "Order Placed": ["Packing", "Cancelled"],
+            "Packing": ["Ready to Deliver", "Cancelled"],
+            "Ready to Deliver": ["Delivered", "Cancelled"],
+            "Delivered": [],
+            "Cancelled": []
+        };
+    }
+
+    return {
+        "Order Placed": ["Packing", "Cancelled"],
+        "Packing": ["Shipping", "Cancelled"],
+        "Shipping": ["Out for Delivery", "Cancelled"],
+        "Out for Delivery": ["Delivered", "Cancelled"],
+        "Delivered": [],
+        "Cancelled": []
+    };
+};
+
 const updateOrderStatus = async (req, res) => {
     try {
         await initOrdersTable();
         const pool = getPool();
         const { id } = req.params;
         const body = req.body || {};
+
+        const [orders] = await pool.query("SELECT * FROM orders WHERE id = ?", [id]);
+        if (!orders || orders.length === 0) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        const order = orders[0];
+        const currentStatus = normalizeOrderStatus(order.status);
+        const requestedStatus = body.status ? normalizeOrderStatus(body.status) : currentStatus;
+        const allowedTransitions = getAllowedStatusTransitionsForOrder(order);
+
+        if (body.status && requestedStatus !== currentStatus) {
+            const allowed = allowedTransitions[currentStatus] || [];
+            if (!allowed.includes(requestedStatus)) {
+                return res.status(400).json({ message: `Invalid status transition from ${currentStatus} to ${requestedStatus}` });
+            }
+        }
+
+        const isPickupOrder = order.order_type === "Pickup" || order.delivery_method === "pickup";
+        if (requestedStatus === "Delivered" && isPickupOrder) {
+            const pickupPersonName = String(order.pickup_person_name || "").trim();
+            const pickupPersonPhone = String(order.pickup_person_phone || "").trim();
+
+            if (!pickupPersonName || !pickupPersonPhone) {
+                return res.status(400).json({ message: "Pickup person name and phone are required before marking this order delivered." });
+            }
+        }
 
         // Build dynamic update
         const allowed = ["status", "tracking_number", "courier_name", "shipped_at", "cancellation_reason", "cancelled_at"];
@@ -371,10 +498,10 @@ const updateOrderStatus = async (req, res) => {
         if (result.affectedRows === 0) return res.status(404).json({ message: "Order not found" });
 
         // Return updated order
-        const [orders] = await pool.query("SELECT * FROM orders WHERE id = ?", [id]);
-        const order = orders[0];
-        const [items] = await pool.query("SELECT * FROM order_items WHERE order_id = ?", [order.order_id]);
-        res.status(200).json({ ...order, items });
+        const [updatedOrders] = await pool.query("SELECT * FROM orders WHERE id = ?", [id]);
+        const updatedOrder = normalizeOrder(updatedOrders[0]);
+        const [items] = await pool.query("SELECT * FROM order_items WHERE order_id = ?", [updatedOrder.order_id]);
+        res.status(200).json({ ...updatedOrder, items });
     } catch (error) {
         console.error("Error updating order status:", error);
         res.status(500).json({ message: "Server error" });

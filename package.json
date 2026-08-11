@@ -2,10 +2,10 @@
   "name": "dmart-supermarket",
   "version": "1.0.0",
   "description": "DMART Supermarket - Frontend & Backend",
-  "scripts": {
+  "scripts": { 
+       
     "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
-    "backend": "cd Backend && npm start",
-    
+    "backend": "cd Backend && npm start",    
     "frontend": "cd Frontend && npm run dev",
     "start": "npm run dev"
   },

@@ -219,7 +219,7 @@ const Settings = () => {
         if (Object.keys(response.data.data).length > 0) {
           const dbData = response.data.data;
           setTaxSettings({
-            enableGst: dbData.enable_gst === 1,
+            enableGst: dbData.enable_gst === 1 || dbData.enable_gst === true || dbData.enable_gst == null,
             defaultGstPercentage: dbData.default_gst_percentage || '5%',
             taxMode: dbData.tax_mode || 'Tax Exclusive',
           });

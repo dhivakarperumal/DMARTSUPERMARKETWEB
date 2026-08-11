@@ -102,7 +102,7 @@ exports.createEmployee = async (req, res) => {
           name,
           username,
           email,
-          password,
+          password_hash,
           phone,
           role,
           status,

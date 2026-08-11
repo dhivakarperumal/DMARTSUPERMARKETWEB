@@ -624,9 +624,12 @@ const CreateBilling = () => {
 
                         <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-6">
                             <div className="flex justify-between items-center mb-3">
-                                <h3 className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                    <FiPackage className="text-blue-500" /> Products
-                                </h3>
+                                <div>
+                                    <h3 className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        <FiPackage className="text-blue-500" /> Search Products
+                                    </h3>
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-1">Search by name, code or barcode to add items to the bill.</p>
+                                </div>
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => {
@@ -718,28 +721,19 @@ const CreateBilling = () => {
                                                             ${oos ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-blue-50 cursor-pointer'}
                                                             ${!oos && selectMode && selectedItems.find(si => si.id === p.id) ? 'bg-blue-50' : ''}`}
                                                     >
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center p-1 overflow-hidden border border-gray-100">
-                                                                <img src={getProductImage(p)} alt="" className={`w-full h-full object-contain ${oos ? 'grayscale' : ''}`} />
-                                                            </div>
-                                                            <div>
-                                                                <p className={`text-sm font-bold uppercase transition-colors ${oos ? 'text-gray-400 line-through' : 'text-slate-800 group-hover:text-blue-600'}`}>{p.name}</p>
-                                                                <p className="text-[10px] font-black text-gray-400"># {p.product_code}</p>
-                                                            </div>
+                                                        <div>
+                                                            <p className={`text-sm font-bold uppercase transition-colors ${oos ? 'text-gray-400 line-through' : 'text-slate-800 group-hover:text-blue-600'}`}>{p.name}</p>
+                                                            <p className="text-[10px] font-black text-gray-400"># {p.product_code}</p>
                                                         </div>
                                                         <div className="text-right">
                                                             {oos ? (
                                                                 <span className="text-[9px] font-black uppercase tracking-widest text-red-500 bg-red-50 px-2 py-0.5 rounded-full">Out of Stock</span>
                                                             ) : (
-                                                                <>
-                                                                    <p className="text-sm font-black text-slate-800">₹{parseFloat(p.offer_price || p.price || 0)}</p>
-                                                                    <p className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">{p.total_stock} Units</p>
-                                                                </>
+                                                                <p className="text-sm font-black text-slate-800">₹{parseFloat(p.offer_price || p.price || 0)}</p>
                                                             )}
                                                         </div>
                                                     </button>
                                                 );})}
-
                                             </div>
                                         </div>
                                     )}
@@ -763,51 +757,8 @@ const CreateBilling = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                {filteredProducts.slice(0, 12).map(p => {
-                                    const oos = isOutOfStock(p);
-                                    return (
-                                    <button
-                                        key={p.id}
-                                        disabled={oos}
-                                        onClick={() => {
-                                            if (oos) return;
-                                            selectMode ? toggleSelectItem(p) : handleProductClick(p);
-                                        }}
-                                        className={`p-3 rounded-2xl text-left transition-all border group relative
-                                            ${oos
-                                                ? 'bg-gray-100 border-gray-100 opacity-60 cursor-not-allowed'
-                                                : selectMode && selectedItems.find(si => si.id === p.id)
-                                                    ? 'bg-blue-50 border-blue-200 cursor-pointer'
-                                                    : 'bg-gray-50 border-transparent hover:bg-white hover:shadow-xl hover:border-blue-100 cursor-pointer'
-                                            }`}
-                                    >
-                                        {/* Out of stock badge */}
-                                        {oos && (
-                                            <div className="absolute top-2 left-0 right-0 flex justify-center z-10 px-1">
-                                                <span className="text-[8px] font-black uppercase tracking-wide text-white bg-red-500 px-2 py-0.5 rounded-full shadow-md whitespace-nowrap">
-                                                    Out of Stock
-                                                </span>
-                                            </div>
-                                        )}
-                                        {/* Select checkbox — only for in-stock */}
-                                        {selectMode && !oos && (
-                                            <div className={`absolute top-2 right-2 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedItems.find(si => si.id === p.id) ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-200'}`}>
-                                                {selectedItems.find(si => si.id === p.id) && <FiCheckCircle className="text-white" size={12} />}
-                                            </div>
-                                        )}
-                                        <div className="aspect-square bg-white rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
-                                            <img src={getProductImage(p)} alt={p.name} className={`w-full h-full object-contain ${oos ? 'grayscale' : ''}`} />
-                                        </div>
-                                        <p className={`text-[10px] font-black line-clamp-1 uppercase whitespace-normal ${oos ? 'text-gray-400' : ''}`}>{p.name}</p>
-                                        {oos ? (
-                                            <p className="text-[9px] font-black text-red-400 mt-1">Low / No Stock</p>
-                                        ) : (
-                                            <p className="text-[10px] font-bold text-blue-500 mt-1 italic">₹{parseFloat(p.offer_price || p.price || 0)}</p>
-                                        )}
-                                    </button>
-                                );})}
-
+                            <div className="py-12 text-center text-sm text-gray-500 border-t border-gray-100">
+                                Product list hidden. Use the search box above to find and add products to the bill.
                             </div>
                         </div>
 

@@ -1,17 +1,14 @@
-import React, { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAdmin } from "../../PrivateRouter/AdminContext";
 import { Link } from "react-router-dom";
 import {
     FiSearch,
-    FiFilter,
     FiEye,
     FiTruck,
     FiCheckCircle,
     FiXCircle,
     FiClock,
     FiShoppingBag,
-    FiDownload,
-    FiMoreVertical,
     FiPlus,
     FiPackage,
     FiPrinter,
@@ -41,35 +38,86 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
     });
 
     const [activeStatus, setActiveStatus] = useState(statusFilter);
+    const [deliveryTypeFilter, setDeliveryTypeFilter] = useState("All");
 
-    useEffect(() => {
-        setActiveStatus(statusFilter);
-    }, [statusFilter]);
+    const isPickupOrder = (order) => !!order && (order.delivery_method === 'pickup' || order.order_type === 'Pickup');
 
-    useEffect(() => {
-        fetchOrders();
-    }, [activeStatus]);
+    function normalizeStatus(status) {
+        const normalized = String(status || "").trim();
+        if (!normalized) return normalized;
 
-    const fetchOrders = async () => {
-        if (!ordersCache[activeStatus]) setLoading(true);
+        const lower = normalized.toLowerCase();
+        if (lower === "paid") return "Order Placed";
+        if (lower === "ready to deliver" || lower === "ready_to_deliver" || lower === "ready for delivery") return "Ready to Deliver";
+        if (lower === "out for delivery") return "Out for Delivery";
+        if (lower === "order placed") return "Order Placed";
+        if (lower === "orderplaced") return "Order Placed";
+        return normalized;
+    }
+
+    function getOrderStatusFlow(order) {
+        return isPickupOrder(order)
+            ? ["Order Placed", "Packing", "Ready to Deliver", "Delivered"]
+            : ["Order Placed", "Packing", "Shipping", "Out for Delivery", "Delivered"];
+    }
+
+    function getAllowedStatusTransitions(order) {
+        const flow = getOrderStatusFlow(order);
+        return flow.reduce((acc, status, index) => {
+            const nextStatuses = [];
+            if (index < flow.length - 1) nextStatuses.push(flow[index + 1]);
+            if (status !== "Delivered") nextStatuses.push("Cancelled");
+            acc[status] = nextStatuses;
+            return acc;
+        }, {});
+    }
+
+    function isStatusTransitionAllowed(order, next) {
+        const normalizedCurrent = normalizeStatus(order.status);
+        const normalizedNext = normalizeStatus(next);
+        if (normalizedCurrent === normalizedNext) return true;
+        const transitions = getAllowedStatusTransitions(order);
+        return transitions[normalizedCurrent]?.includes(normalizedNext);
+    }
+
+    const fetchOrders = useCallback(async (statusToFetch = activeStatus) => {
+        setLoading(true);
         try {
-            const res = await api.get(`/orders?status=${activeStatus}`);
+            const res = await api.get(`/orders?status=${statusToFetch}`);
             const data = res.data || [];
             setOrders(data);
-            setOrdersCache(prev => ({ ...prev, [activeStatus]: data }));
+            setOrdersCache(prev => ({ ...prev, [statusToFetch]: data }));
         } catch (error) {
             console.error("Fetch Orders Error:", error);
             toast.error("Failed to load orders");
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeStatus, setOrdersCache]);
 
-    const handleQuickStatusUpdate = async (orderId, newStatus) => {
-        if (newStatus === "Shipping" || newStatus === "Cancelled") {
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void fetchOrders();
+    }, [fetchOrders]);
+
+    const handleQuickStatusUpdate = async (order, newStatus) => {
+        const normalizedCurrent = normalizeStatus(order.status);
+        const normalizedNext = normalizeStatus(newStatus);
+
+        if (!isStatusTransitionAllowed(order, normalizedNext)) {
+            toast.error(`Invalid transition: ${normalizedCurrent} → ${normalizedNext}`);
+            return;
+        }
+
+        if (isPickupOrder(order) && normalizedNext === "Delivered" && (!order.pickup_person_name || !order.pickup_person_phone)) {
+            toast.error("Pickup orders require pickup person name and phone before marking Delivered.");
+            return;
+        }
+
+        if (normalizedNext === "Shipping" || normalizedNext === "Cancelled") {
             setModalData({
-                orderId,
-                status: newStatus,
+                orderId: order.id,
+                status: normalizedNext,
                 tracking: "",
                 courier: "",
                 reason: ""
@@ -78,7 +126,7 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
             return;
         }
 
-        performStatusUpdate(orderId, { status: newStatus });
+        performStatusUpdate(order.id, { status: normalizedNext });
     };
 
     const performStatusUpdate = async (orderId, updateData) => {
@@ -89,7 +137,11 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
             fetchOrders();
         } catch (error) {
             console.error("Status Sync Error:", error);
-            toast.error("Failed to sync pipeline status");
+            const message =
+                error?.response?.data?.message ||
+                error?.message ||
+                "Failed to sync pipeline status";
+            toast.error(message);
         } finally {
             setLoading(false);
         }
@@ -135,10 +187,19 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
         
         let matchesStatus = true;
         if (activeStatus !== "All") {
-            matchesStatus = order.status === activeStatus;
+            matchesStatus = normalizeStatus(order.status) === activeStatus;
+        }
+
+        let matchesDeliveryType = true;
+        if (deliveryTypeFilter !== "All") {
+            if (deliveryTypeFilter === "Pickup") {
+                matchesDeliveryType = order.delivery_method === "pickup" || order.order_type === "Pickup";
+            } else {
+                matchesDeliveryType = order.delivery_method !== "pickup" && order.order_type !== "Pickup";
+            }
         }
             
-        return matchesSearch && matchesDate && matchesStatus;
+        return matchesSearch && matchesDate && matchesStatus && matchesDeliveryType;
     });
 
     // Pagination Logic
@@ -147,15 +208,24 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredOrders.slice(indexOfFirstItem, indexOfLastItem);
 
-    // Reset to page 1 when search or status filter change
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, activeStatus]);
+
+    const formatPrice = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const getStatusOptions = (order) => {
+        const normalized = normalizeStatus(order.status);
+        const transitions = getAllowedStatusTransitions(order);
+        if (!transitions[normalized]) {
+            return [normalized];
+        }
+        return [normalized, ...transitions[normalized]];
+    };
 
     const getStatusStyle = (status) => {
-        switch (status) {
+        const normalized = normalizeStatus(status);
+        switch (normalized) {
             case "Order Placed": return "bg-blue-100 text-blue-700 border-blue-200";
             case "Packing": return "bg-indigo-100 text-indigo-700 border-indigo-200";
+            case "Ready to Deliver": return "bg-amber-100 text-amber-700 border-amber-200";
             case "Shipping": return "bg-amber-100 text-amber-700 border-amber-200";
             case "Out for Delivery": return "bg-cyan-100 text-cyan-700 border-cyan-200";
             case "Delivered": return "bg-emerald-100 text-emerald-700 border-emerald-200";
@@ -168,9 +238,11 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
     };
 
     const getStatusIcon = (status) => {
-        switch (status) {
+        const normalized = normalizeStatus(status);
+        switch (normalized) {
             case "Order Placed": return <FiShoppingBag className="w-3.5 h-3.5" />;
             case "Packing": return <FiPackage className="w-3.5 h-3.5" />;
+            case "Ready to Deliver": return <FiClock className="w-3.5 h-3.5" />;
             case "Shipping": return <FiTruck className="w-3.5 h-3.5" />;
             case "Out for Delivery": return <FiTruck className="w-3.5 h-3.5" />;
             case "Delivered": return <FiCheckCircle className="w-3.5 h-3.5" />;
@@ -205,9 +277,9 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                     { label: "Total Orders", value: filteredOrders.length, icon: <FiPackage />, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100", status: "All" },
-                    { label: "Pending", value: orders.filter(o => ['Order Placed', 'Processing', 'New'].includes(o.status)).length, icon: <FiClock />, color: "text-amber-500", bg: "bg-amber-50", border: "border-amber-100", status: "Order Placed" },
-                    { label: "In Transit", value: orders.filter(o => ['Shipping', 'Out for Delivery', 'Shipped', 'Packing'].includes(o.status)).length, icon: <FiTruck />, color: "text-indigo-500", bg: "bg-indigo-50", border: "border-indigo-100", status: "Shipping" },
-                    { label: "Delivered", value: orders.filter(o => o.status === 'Delivered').length, icon: <FiCheckCircle />, color: "text-emerald-500", bg: "bg-emerald-50", border: "border-emerald-100", status: "Delivered" }
+                    { label: "Pending", value: orders.filter(o => ['Order Placed', 'Processing', 'New'].includes(normalizeStatus(o.status))).length, icon: <FiClock />, color: "text-amber-500", bg: "bg-amber-50", border: "border-amber-100", status: "Order Placed" },
+                    { label: "In Transit", value: orders.filter(o => ['Shipping', 'Out for Delivery', 'Shipped', 'Packing', 'Ready to Deliver'].includes(normalizeStatus(o.status))).length, icon: <FiTruck />, color: "text-indigo-500", bg: "bg-indigo-50", border: "border-indigo-100", status: "Shipping" },
+                    { label: "Delivered", value: orders.filter(o => normalizeStatus(o.status) === 'Delivered').length, icon: <FiCheckCircle />, color: "text-emerald-500", bg: "bg-emerald-50", border: "border-emerald-100", status: "Delivered" }
                 ].map((stat, index) => (
                     <button
                         key={index}
@@ -230,19 +302,32 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px]">
                 {/* Search and Filters */}
                 <div className="p-5 border-b border-gray-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-                    <div className="flex flex-wrap gap-2">
-                        {['All', 'Order Placed', 'Packing', 'Shipping', 'Out for Delivery', 'Delivered', 'Cancelled'].map((status) => (
-                            <button
-                                key={status}
-                                onClick={() => setActiveStatus(status)}
-                                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all
-                                ${activeStatus === status
-                                        ? 'bg-gray-800 text-white shadow-md shadow-gray-800/20'
-                                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                            >
-                                {status}
-                            </button>
-                        ))}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <select
+                            value={activeStatus}
+                            onChange={(e) => {
+                                setActiveStatus(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                            className="min-w-[160px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        >
+                            {['All', 'Order Placed', 'Packing', 'Ready to Deliver', 'Shipping', 'Out for Delivery', 'Delivered', 'Cancelled'].map((status) => (
+                                <option key={status} value={status}>{status}</option>
+                            ))}
+                        </select>
+
+                        <select
+                            value={deliveryTypeFilter}
+                            onChange={(e) => {
+                                setDeliveryTypeFilter(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                            className="min-w-[150px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                        >
+                            {['All', 'Pickup', 'Door Delivery'].map((type) => (
+                                <option key={type} value={type}>{type}</option>
+                            ))}
+                        </select>
                     </div>
 
                     <div className="relative w-full xl:max-w-xs">
@@ -252,7 +337,10 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
                             placeholder="Search orders..."
                             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-sm"
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setCurrentPage(1);
+                            }}
                         />
                     </div>
                 </div>
@@ -271,6 +359,7 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
                                     <th className="px-5 py-4 text-xs font-semibold text-white uppercase tracking-wider">Order</th>
                                     <th className="px-5 py-4 text-xs font-semibold text-white uppercase tracking-wider">Customer</th>
                                     <th className="px-5 py-4 text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+                                    <th className="px-5 py-4 text-xs font-semibold text-white uppercase tracking-wider">Delivery Type</th>
                                     <th className="px-5 py-4 text-xs font-semibold text-white uppercase tracking-wider">Payment</th>
                                     <th className="px-5 py-4 text-xs font-semibold text-white uppercase tracking-wider">Total</th>
                                     <th className="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
@@ -279,7 +368,7 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
                             <tbody className="divide-y divide-gray-100 text-sm">
                                 {currentItems.length > 0 ? (
                                     currentItems.map((order) => (
-                                        <tr key={order.id} className="hover:bg-blue-50/30 transition-colors group">
+                                        <tr key={order.id} className={`transition-colors group ${order.delivery_method === 'pickup' || order.order_type === 'Pickup' ? 'bg-amber-50/30 hover:bg-amber-50/40' : 'hover:bg-blue-50/30'}`}>
                                             <td className="px-5 py-4 align-top">
                                                 <div className="flex flex-col gap-0.5">
                                                     <p className="text-gray-900 font-bold">#ORD-0{order.id}</p>
@@ -302,32 +391,25 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
                                             <td className="px-5 py-4 align-top">
                                                 <div className="flex flex-col gap-2">
                                                     <div className="relative inline-flex items-center">
-                                                        <select
-                                                            value={order.status}
-                                                            onChange={(e) => handleQuickStatusUpdate(order.id, e.target.value)}
-                                                            className={`appearance-none cursor-pointer pl-8 pr-8 py-1.5 rounded-lg text-xs font-semibold border border-transparent outline-none transition-all hover:border-gray-300 focus:ring-2 focus:ring-blue-100 ${getStatusStyle(order.status)}`}
-                                                        >
-                                                            {(() => {
-                                                                const flow = ["Order Placed", "Packing", "Shipping", "Out for Delivery", "Delivered"];
-                                                                const currentIndex = flow.indexOf(order.status);
-                                                                const options = currentIndex === -1 
-                                                                    ? [...flow, "Cancelled", order.status] 
-                                                                    : [...flow.slice(currentIndex), ...(currentIndex < 2 ? ["Cancelled"] : [])];
-                                                                
-                                                                return Array.from(new Set(options)).map(status => (
-                                                                    <option key={status} value={status}>{status}</option>
-                                                                ));
-                                                            })()}
-                                                        </select>
-                                                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60">
-                                                            {getStatusIcon(order.status)}
-                                                        </div>
-                                                        <FiChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none opacity-60" />
+                                                    <select
+                                                        value={normalizeStatus(order.status)}
+                                                        onChange={(e) => handleQuickStatusUpdate(order, e.target.value)}
+                                                        disabled={['Delivered','Cancelled'].includes(normalizeStatus(order.status))}
+                                                        className={`appearance-none cursor-pointer pl-8 pr-8 py-1.5 rounded-lg text-xs font-semibold border border-transparent outline-none transition-all hover:border-gray-300 focus:ring-2 focus:ring-blue-100 ${getStatusStyle(order.status)} ${['Delivered','Cancelled'].includes(normalizeStatus(order.status)) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        {getStatusOptions(order).map(status => (
+                                                            <option key={status} value={status}>{status}</option>
+                                                        ))}
+                                                    </select>
+                                                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60">
+                                                        {getStatusIcon(order.status)}
                                                     </div>
+                                                    <FiChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none opacity-60" />
+                                                </div>
 
                                                     {/* Tracking Info */}
                                                     {order.status === 'Shipping' && order.tracking_number && (
-                                                        <div className="flex flex-col gap-0.5 px-3 py-2 bg-amber-50 rounded-lg border border-amber-100/50 mt-1 max-w-[200px]">
+                                                        <div className="hidden group-hover:flex flex-col gap-0.5 px-3 py-2 bg-amber-50 rounded-lg border border-amber-100/50 mt-1 max-w-[200px]">
                                                             <p className="text-xs font-semibold text-amber-700 truncate" title={`${order.courier_name}: ${order.tracking_number}`}>
                                                                 {order.courier_name}: {order.tracking_number}
                                                             </p>
@@ -355,12 +437,17 @@ const Orders = ({ statusFilter = "All", dateFilter = "All" }) => {
                                                 </div>
                                             </td>
                                             <td className="px-5 py-4 align-top">
+                                                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${order.delivery_method === 'pickup' || order.order_type === 'Pickup' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-cyan-50 text-cyan-700 border-cyan-200'}`}>
+                                                    {order.delivery_method === 'pickup' || order.order_type === 'Pickup' ? 'Pickup' : 'Door Delivery'}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4 align-top">
                                                 <span className="text-gray-600 text-xs font-medium px-2 py-1 rounded-md bg-gray-100 border border-gray-200">
                                                     {order.payment_method || 'N/A'}
                                                 </span>
                                             </td>
                                             <td className="px-5 py-4 align-top">
-                                                <span className="font-bold text-gray-900">₹{parseFloat(order.total_amount || 0).toLocaleString()}</span>
+                                                <span className="font-bold text-gray-900">{formatPrice(order.total_amount)}</span>
                                             </td>
                                             <td className="px-5 py-4 align-top text-right">
                                                 <div className="flex items-center justify-end gap-1.5">

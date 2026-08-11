@@ -1,19 +1,18 @@
-import React, { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
 import { AuthContext } from "../../PrivateRouter/AuthContext";
-import api, { getFileUrl, getProductImageUrl } from "../../api";
+import api, { getProductImageUrl } from "../../api";
 import PageHeader from "../CommenComponents/PageHeader";
 import toast from "react-hot-toast";
-import { FiMapPin, FiPackage, FiCreditCard, FiShield, FiCheckCircle } from "react-icons/fi";
+import { FiMapPin, FiPackage, FiCreditCard, FiShield, FiCheckCircle, FiClock } from "react-icons/fi";
 import PageContainer from "../CommenComponents/PageContainer";
 
 const Checkout = () => {
   const { cart, clearCart } = useContext(StoreContext);
   const { user } = useContext(AuthContext);
-  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentMethod, setPaymentMethod] = useState("online");
   const [paymentSettings, setPaymentSettings] = useState(null);
-  const [onlinePaymentType, setOnlinePaymentType] = useState("upi");
   const [deliveryMethod, setDeliveryMethod] = useState("delivery");
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,18 +20,29 @@ const Checkout = () => {
   const buyNowProduct = location.state?.product;
   const buyNowVariant = location.state?.variant;
   const buyNowSize = location.state?.size;
-  const [addresses, setAddresses] = useState([]);
-  const [selectedAddress, setSelectedAddress] = useState(null);
   const [distanceInfo, setDistanceInfo] = useState({ loading: false, error: "", distanceKm: null });
   const [deliveryCharges, setDeliveryCharges] = useState(null);
-  const [deliveryChargeError, setDeliveryChargeError] = useState("");
-  const [taxSettings, setTaxSettings] = useState(null);
-  const [taxAmount, setTaxAmount] = useState(0);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [storeSettings, setStoreSettings] = useState(null);
+
+  const [pickupConfig] = useState(() => {
+    const todayDate = new Date();
+    const tomorrowDate = new Date(todayDate.getTime() + 24 * 60 * 60 * 1000);
+    const formatDate = (date) => date.toISOString().slice(0, 10);
+    return {
+      allowedPickupDates: [formatDate(todayDate), formatDate(tomorrowDate)],
+      allowedPickupTimes: Array.from({ length: 30 }, (_, index) => {
+        const totalMinutes = 8 * 60 + index * 30;
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      }).filter((time) => time <= '22:30'),
+    };
+  });
+  const { allowedPickupDates, allowedPickupTimes } = pickupConfig;
   const buyNowQuantity = location.state?.quantity || 1;
   const [locationData, setLocationData] = useState({
     address: "",
@@ -40,71 +50,6 @@ const Checkout = () => {
     longitude: "",
   });
 
-  const resolveImageUrl = (url) => {
-    const final = getFileUrl(url);
-    return final;
-  };
-
-  const normalizeImageList = (value) => {
-    if (!value) return [];
-    if (Array.isArray(value)) return value;
-    if (typeof value === "string") {
-      try {
-        const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {
-        return [value];
-      }
-    }
-    return [value];
-  };
-
-  const fetchAddresses = async () => {
-    try {
-      const res = await api.get(`/addresses/user/${user.user_id}`);
-      const userAddresses = res.data || [];
-      setAddresses(userAddresses);
-
-      const defaultAddr = userAddresses.find((a) => a.is_default) || userAddresses[0];
-      if (defaultAddr) {
-        setSelectedAddress(defaultAddr.id);
-        setForm((prev) => ({
-          ...prev,
-          customer_name: defaultAddr.customer_name || "",
-          customer_email: defaultAddr.customer_email || "",
-          customer_phone: defaultAddr.customer_phone || "",
-          street_address: defaultAddr.street_address || "",
-          city: defaultAddr.city || "",
-          district: defaultAddr.district || "",
-          state: defaultAddr.state || "",
-          country: defaultAddr.country || "India",
-          zip_code: defaultAddr.zip_code || "",
-        }));
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const selectAddress = (address) => {
-    setSelectedAddress(address.id);
-    setForm((prev) => ({
-      ...prev,
-      customer_name: address.customer_name,
-      customer_email: address.customer_email || "",
-      customer_phone: address.customer_phone || "",
-      street_address: address.street_address,
-      city: address.city || "",
-      district: address.district || "",
-      state: address.state || "",
-      country: address.country || "India",
-      zip_code: address.zip_code || "",
-    }));
-  };
-
-  useEffect(() => {
-    if (user?.user_id) fetchAddresses();
-  }, [user]);
 
   const fetchDeliveryCharges = async () => {
     try {
@@ -127,14 +72,11 @@ const Checkout = () => {
       if (chargesData && chargesData.id) {
         setDeliveryCharges(chargesData);
         console.log("Delivery charges set to:", chargesData);
-        setDeliveryChargeError("");
       } else {
         console.warn("No delivery charges data found");
-        setDeliveryChargeError("No delivery charges configured");
       }
     } catch (error) {
       console.error("Error fetching delivery charges:", error);
-      setDeliveryChargeError("Unable to fetch delivery charges");
     }
   };
 
@@ -161,16 +103,14 @@ const Checkout = () => {
         if (availableMethods.length === 1) {
           setPaymentMethod(availableMethods[0]);
         }
-        setOnlinePaymentType("upi");
       }
     } catch (error) {
       console.error("Error fetching payment settings:", error);
     }
   };
 
-  const fetchTaxSettings = async () => {
+  const fetchStoreSettings = async () => {
     try {
-      // Try to use locally cached store settings first (saved from admin settings)
       const cached = localStorage.getItem('store_settings');
       if (cached) {
         try {
@@ -193,14 +133,20 @@ const Checkout = () => {
         }
       }
     } catch (error) {
-      console.error("Error fetching tax settings:", error);
+      console.error("Error fetching store settings:", error);
     }
   };
 
   useEffect(() => {
-    fetchDeliveryCharges();
-    fetchPaymentSettings();
-    fetchTaxSettings();
+    const initializeCheckout = async () => {
+      await Promise.all([
+        fetchDeliveryCharges(),
+        fetchPaymentSettings(),
+        fetchStoreSettings(),
+      ]);
+    };
+
+    initializeCheckout();
   }, []);
 
   // Recalculate delivery charge when distance or charges change
@@ -243,19 +189,22 @@ const Checkout = () => {
     }
   }, [user?.user_id]);
 
-  const checkoutItems = buyNowProduct
-    ? [
-      {
-        id: buyNowProduct.id,
-        name: buyNowProduct.name,
-        image: getProductImageUrl(buyNowProduct) || "/placeholder.png",
-        price: buyNowProduct.offer_price || buyNowProduct.price,
-        quantity: buyNowQuantity,
-        size: buyNowSize,
-        colorName: buyNowVariant?.color,
-      },
-    ]
-    : cart;
+  const checkoutItems = useMemo(() => {
+    if (buyNowProduct) {
+      return [
+        {
+          id: buyNowProduct.id,
+          name: buyNowProduct.name,
+          image: getProductImageUrl(buyNowProduct) || "/placeholder.png",
+          price: buyNowProduct.offer_price || buyNowProduct.price,
+          quantity: buyNowQuantity,
+          size: buyNowSize,
+          colorName: buyNowVariant?.color,
+        },
+      ];
+    }
+    return cart;
+  }, [buyNowProduct, buyNowVariant, buyNowSize, buyNowQuantity, cart]);
 
   // Validate applied coupon when cart changes
   useEffect(() => {
@@ -490,7 +439,7 @@ const Checkout = () => {
     // Calculate delivery charge
     const calculatedCharge = baseCharge + distanceKm * perKmCharge;
     return {
-      charge: Math.round(calculatedCharge * 100) / 100,
+      charge: floorAmount(calculatedCharge),
       message: `Base ₹${baseCharge} + ${distanceKm}km × ₹${perKmCharge}/km`,
     };
   };
@@ -684,10 +633,10 @@ const Checkout = () => {
 
 
   const [form, setForm] = useState({
-    user_id: user?.user_id || "",
-    customer_name: "",
-    customer_email: "",
-    customer_phone: "",
+    user_id: user?.user_id || user?.id || "",
+    customer_name: user?.username || user?.name || "",
+    customer_email: user?.email || "",
+    customer_phone: user?.phone || "",
     street_address: "",
     city: "",
     district: "",
@@ -695,14 +644,50 @@ const Checkout = () => {
     country: "India",
     zip_code: "",
     payment_method: "Online Payment",
+    pickup_date: "",
+    pickup_time: "",
+    pickup_person_name: "",
+    pickup_person_phone: "",
   });
+
+  useEffect(() => {
+    if (!user) return;
+
+    setForm((prev) => ({
+      ...prev,
+      user_id: user?.user_id || user?.id || prev.user_id || "",
+      customer_name: prev.customer_name || user?.username || user?.name || "",
+      customer_email: prev.customer_email || user?.email || "",
+      customer_phone: prev.customer_phone || user?.phone || "",
+    }));
+  }, [user]);
+
+  const formatDateString = (date) => date.toISOString().slice(0, 10);
+  const todayDateString = formatDateString(new Date());
+  const getTodayCutoffMinutes = () => {
+    const cutoff = new Date();
+    cutoff.setHours(cutoff.getHours() + 1);
+    cutoff.setSeconds(0, 0);
+    return cutoff.getHours() * 60 + cutoff.getMinutes();
+  };
+
+  const isPickupToday = form.pickup_date === todayDateString;
+  const todayCutoffMinutes = getTodayCutoffMinutes();
+  const isPickupTimeDisabled = (time) => {
+    if (!isPickupToday) return false;
+    const [hours, minutes] = time.split(":").map(Number);
+    return hours * 60 + minutes < todayCutoffMinutes;
+  };
+
+  const floorAmount = (value) => Math.max(0, Math.floor(Number(value || 0)));
 
   const subtotal = checkoutItems.reduce((total, item) => total + parseFloat(item.price || 0) * item.quantity, 0);
   const deliveryInfo = calculateDeliveryCharge(distanceInfo.distanceKm, subtotal);
   const shipping = deliveryMethod === "pickup" ? 0 : deliveryInfo.charge;
-  const availablePaymentMethods = [];
-  if (paymentSettings?.cashSupport) availablePaymentMethods.push({ value: "cash", label: "Cash" });
-  if (paymentSettings?.onlinePaymentSupport) availablePaymentMethods.push({ value: "online", label: "Online Payment" });
+
+  const availablePaymentMethods = useMemo(() => [
+    { value: "online", label: "Online Payment" },
+  ], []);
 
   // Calculate coupon discount
   let discountAmount = 0;
@@ -712,33 +697,10 @@ const Checkout = () => {
     } else {
       discountAmount = parseFloat(appliedCoupon.discount_value);
     }
-    discountAmount = Math.round(discountAmount * 100) / 100;
+    discountAmount = floorAmount(discountAmount);
   }
 
-  // Calculate Tax
-  let calculatedTax = 0;
-  let taxLabel = "";
-  if (taxSettings && taxSettings.enable_gst === 1) {
-    const gstStr = taxSettings.default_gst_percentage || "0%";
-    const gstPercent = parseFloat(gstStr.replace("%", "")) || 0;
-
-    if (taxSettings.tax_mode === 'Tax Inclusive') {
-      calculatedTax = ((subtotal - discountAmount) * gstPercent) / (100 + gstPercent);
-      taxLabel = `Includes GST (${gstPercent}%)`;
-    } else {
-      calculatedTax = ((subtotal - discountAmount) * gstPercent) / 100;
-      taxLabel = `GST (${gstPercent}%)`;
-    }
-  }
-
-  const taxAmountValue = Math.round(calculatedTax * 100) / 100;
-
-  let total = 0;
-  if (taxSettings?.enable_gst === 1 && taxSettings?.tax_mode === 'Tax Inclusive') {
-    total = Math.round((subtotal - discountAmount + shipping) * 100) / 100;
-  } else {
-    total = Math.round((subtotal - discountAmount + taxAmountValue + shipping) * 100) / 100;
-  }
+  let total = floorAmount(subtotal - discountAmount + shipping);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -780,16 +742,21 @@ const Checkout = () => {
         user_id: user?.user_id,
         email: form.customer_email,
         payment_status: paymentMethod === "online" ? "paid" : "pending",
-        payment_method: paymentMethod === "online" ? "Online Payment" : "Cash",
-        payment_id: paymentId,
-        items: orderItems,
-        total_amount: total,
-        delivery_charge: shipping,
-        delivery_method: deliveryMethod,
-        distance_km: deliveryMethod === "pickup" ? 0 : distanceInfo.distanceKm,
-        coupon_code: appliedCoupon?.code || null,
-        coupon_discount: discountAmount || 0,
-        subtotal_before_discount: subtotal,
+order_type: deliveryMethod === "pickup" ? "Pickup" : "Delivery",
+      payment_method: paymentMethod === "online" ? "Online Payment" : "Cash",
+      payment_id: paymentId,
+      items: orderItems,
+      total_amount: floorAmount(total),
+      delivery_charge: floorAmount(shipping),
+      delivery_method: deliveryMethod,
+      distance_km: deliveryMethod === "pickup" ? 0 : distanceInfo.distanceKm,
+      coupon_code: appliedCoupon?.code || null,
+      coupon_discount: discountAmount || 0,
+      subtotal_before_discount: subtotal,
+      pickup_date: form.pickup_date || null,
+      pickup_time: form.pickup_time || null,
+      pickup_person_name: form.pickup_person_name || null,
+      pickup_person_phone: form.pickup_person_phone || null,
         created_at: new Date().toISOString(),
       };
 
@@ -808,6 +775,10 @@ const Checkout = () => {
         country: "India",
         zip_code: "",
         payment_method: "Cash",
+        pickup_date: "",
+        pickup_time: "",
+        pickup_person_name: "",
+        pickup_person_phone: "",
       });
 
       toast.success("Order Placed Successfully!");
@@ -858,6 +829,41 @@ const Checkout = () => {
       }
     }
 
+    if (deliveryMethod === "pickup") {
+      if (!form.pickup_date) {
+        toast.error("Please select pickup date");
+        return;
+      }
+      if (!allowedPickupDates.includes(form.pickup_date)) {
+        toast.error("Pickup date must be today or tomorrow");
+        return;
+      }
+      if (!form.pickup_time) {
+        toast.error("Please select pickup time");
+        return;
+      }
+      if (!allowedPickupTimes.includes(form.pickup_time)) {
+        toast.error("Pickup time must be between 08:00 and 22:30");
+        return;
+      }
+      if (isPickupToday) {
+        const [hours, minutes] = form.pickup_time.split(":").map(Number);
+        const selectedMinutes = hours * 60 + minutes;
+        if (selectedMinutes < todayCutoffMinutes) {
+          toast.error("Today’s pickup time must be at least 1 hour from now");
+          return;
+        }
+      }
+      if (!form.pickup_person_name.trim()) {
+        toast.error("Please enter pickup person name");
+        return;
+      }
+      if (!form.pickup_person_phone.trim()) {
+        toast.error("Please enter pickup person phone");
+        return;
+      }
+    }
+
     if (!checkoutItems.length) {
       alert("No product to checkout");
       return;
@@ -882,7 +888,7 @@ const Checkout = () => {
 
       const options = {
         key: paymentSettings.razorpayKey,
-        amount: total * 100,
+        amount: floorAmount(total) * 100,
         currency: "INR",
         name: "Priyam Supermarket",
         description: "Order Payment",
@@ -1040,6 +1046,47 @@ const Checkout = () => {
                   </div>
                 )}
 
+                {deliveryMethod === "pickup" && (
+                  <div className="rounded-[1.75rem] border border-green-100 bg-white p-6 shadow-[0_20px_50px_rgba(14,104,39,0.08)]">
+                    <div className="mb-4 flex items-center gap-2">
+                      <FiClock className="text-[#0e6827]" />
+                      <h2 className="text-lg font-semibold text-slate-800">Pickup Schedule</h2>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="space-y-2 text-sm text-slate-600">
+                        <span className="font-semibold text-slate-800">Pickup Date</span>
+                        <select name="pickup_date" value={form.pickup_date} onChange={handleChange} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm outline-none transition focus:border-[#0e6827] focus:bg-white focus:ring-2 focus:ring-green-100">
+                          <option value="">Select Pickup Date</option>
+                          {allowedPickupDates.map((date) => (
+                            <option key={date} value={date}>{new Date(date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-2 text-sm text-slate-600">
+                        <span className="font-semibold text-slate-800">Pickup Time</span>
+                        <select name="pickup_time" value={form.pickup_time} onChange={handleChange} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm outline-none transition focus:border-[#0e6827] focus:bg-white focus:ring-2 focus:ring-green-100">
+                          <option value="">Select Pickup Time</option>
+                          {allowedPickupTimes.map((time) => (
+                            <option
+                              key={time}
+                              value={time}
+                              disabled={isPickupTimeDisabled(time)}
+                              style={isPickupTimeDisabled(time) ? { color: '#9ca3af', backgroundColor: '#f8fafc' } : undefined}
+                            >
+                              {time}{isPickupTimeDisabled(time) ? ' (unavailable)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2 mt-4">
+                      <input name="pickup_person_name" placeholder="Pickup Person Name" value={form.pickup_person_name} onChange={handleChange} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm outline-none transition focus:border-[#0e6827] focus:bg-white focus:ring-2 focus:ring-green-100" />
+                      <input name="pickup_person_phone" placeholder="Pickup Person Phone" value={form.pickup_person_phone} onChange={handleChange} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm outline-none transition focus:border-[#0e6827] focus:bg-white focus:ring-2 focus:ring-green-100" />
+                    </div>
+                    <p className="mt-4 text-sm text-slate-500">Pickup is available only today or tomorrow between 08:00 and 22:30.</p>
+                  </div>
+                )}
+
                 {/* {addresses.length > 0 && (
                   <div className="rounded-[1.75rem] border border-green-100 bg-white p-6 shadow-[0_20px_50px_rgba(14,104,39,0.08)]">
                     <div className="mb-4 flex items-center gap-2">
@@ -1159,7 +1206,7 @@ const Checkout = () => {
 
                         <div className="text-right">
                           <p className="text-sm font-bold text-[#0e6827]">
-                            ₹{(item.price * item.quantity).toFixed(2)}
+                            ₹{Number((Number(item.price || 0) * Number(item.quantity || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                         </div>
                       </div>
@@ -1169,11 +1216,11 @@ const Checkout = () => {
                 <div className="rounded-[1.75rem] border border-green-100 bg-white p-6 shadow-[0_20px_50px_rgba(14,104,39,0.08)]">
 
                   <div className="mt-6 space-y-3 text-sm text-slate-600">
-                    <div className="flex justify-between"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span>Subtotal</span><span>₹{Number(subtotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                     <div className="flex justify-between">
                       <span>Delivery Charges</span>
                       <span className={shipping === 0 ? "font-semibold text-green-600" : "font-semibold text-slate-800"}>
-                        {shipping === 0 ? "Free" : `₹${shipping.toFixed(2)}`}
+                        {shipping === 0 ? "Free" : `₹${Number(shipping || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                       </span>
                     </div>
                     {deliveryMethod === "delivery" && deliveryInfo.message && (
@@ -1184,20 +1231,12 @@ const Checkout = () => {
                     {appliedCoupon && (
                       <div className="flex justify-between">
                         <span>Discount ({appliedCoupon.code})</span>
-                        <span className="font-semibold text-green-600">-₹{discountAmount.toFixed(2)}</span>
-                      </div>
-                    )}
-                    {taxSettings?.enable_gst === 1 && (
-                      <div className="flex justify-between">
-                        <span>{taxLabel}</span>
-                        <span className="font-semibold text-slate-800">
-                          {taxSettings.tax_mode === 'Tax Inclusive' ? `(₹${taxAmountValue.toFixed(2)})` : `₹${taxAmountValue.toFixed(2)}`}
-                        </span>
+                        <span className="font-semibold text-green-600">-₹{Number(discountAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                     )}
                     <div className="flex justify-between border-t border-gray-100 pt-3 text-base font-semibold text-slate-800">
                       <span>Total</span>
-                      <span className="text-[#0e6827]">₹{total.toFixed(2)}</span>
+                      <span className="text-[#0e6827]">₹{Number(total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
 

@@ -42,7 +42,7 @@ app.use(
       } catch (err) {}
       const allowed = [
         "https://dmart.qtechx.com",
-        "http://dmart.qtechx.com"
+        "http://dmart.qtechx.com",
       ];
       if (allowed.includes(origin)) return callback(null, origin);
       callback(new Error("Not allowed by CORS"));
@@ -311,6 +311,8 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/dealers', dealersRouter);
 app.use('/api/deliveryCharges', deliveryChargesRouter);
 app.use('/api/employee', employeeRoutes);
+// Also expose legacy /api/staff routes expected by the frontend
+app.use('/api/staff', employeeRoutes);
 app.use('/api/invoices', invoicesRouter);
 app.use('/api/leave', leaveRouter);
 app.use('/api/login', loginRouter);
@@ -324,6 +326,20 @@ app.use('/api/salary', salaryRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/videos', videosRouter);
 app.use('/api/wishlist', wishlistRouter);
+
+// Return JSON 404 for any unknown API route.
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, message: 'API endpoint not found' });
+});
+
+// Serve frontend build if available
+const frontendDist = path.join(__dirname, '..', 'Frontend', 'dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}
 
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {

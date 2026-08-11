@@ -170,7 +170,7 @@ const UserDetail = () => {
                 <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500"><FiDollarSign size={80} /></div>
                 <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-4"><FiDollarSign size={24} /></div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Spent</p>
-                <h3 className="text-3xl font-black text-slate-800 mt-1">₹{totalSpent.toFixed(2)}</h3>
+                <h3 className="text-3xl font-black text-slate-800 mt-1">₹{Number(totalSpent || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
             </div>
 
             <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
@@ -227,7 +227,7 @@ const UserDetail = () => {
                           </span>
                         </td>
                         <td className="py-4 px-4">
-                          <p className="text-sm font-black text-slate-800">₹{parseFloat(o.total_amount || o.total || o.amount || 0).toFixed(2)}</p>
+                          <p className="text-sm font-black text-slate-800">₹{Number(o.total_amount || o.total || o.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </td>
                         <td className="py-4 px-4 text-right rounded-r-2xl">
                           <button onClick={() => navigate(`/admin/orders/${o.id || o.order_id}`)} className="px-4 py-2 bg-white border border-gray-200 hover:border-blue-300 hover:text-blue-600 rounded-xl text-xs font-bold text-gray-600 transition-all shadow-sm">

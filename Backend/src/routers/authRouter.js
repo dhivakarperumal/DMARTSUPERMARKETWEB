@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const multer = require('multer');
-const upload = multer();
 
-router.post('/register', upload.none(), authController.register);
-router.post('/login', upload.none(), authController.login);
+router.post('/register', authController.register);
+router.post('/login', authController.login);
 router.get('/users', authController.getAllUsers);
+router.put('/users/:id', authController.updateUser);
 
 module.exports = router;

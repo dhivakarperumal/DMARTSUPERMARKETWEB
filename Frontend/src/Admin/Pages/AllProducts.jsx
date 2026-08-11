@@ -544,6 +544,8 @@ const AllProducts = () => {
                                     <tbody className="divide-y divide-gray-100">
                                         {currentItems.map((product) => {
                                             const stock = product.total_stock ?? product.stock ?? 0;
+                                            const stockValue = Number(stock || 0);
+                                            const stockDisplay = Number.isInteger(stockValue) ? String(stockValue) : stockValue.toFixed(3).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
                                             const mrp = parseFloat(product.mrp || 0);
                                             const price = parseFloat(product.offer_price || product.selling_price || 0);
                                             
@@ -610,7 +612,7 @@ const AllProducts = () => {
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div>
-                                                        <p className={`text-sm font-bold ${stock > 0 ? 'text-[#3a8b28]' : 'text-red-600'}`}>{stock}</p>
+                                                        <p className={`text-sm font-bold ${stock > 0 ? 'text-[#3a8b28]' : 'text-red-600'}`}>{stockDisplay}</p>
                                                         <p className="text-[11px] text-gray-500 mt-0.5">{stock > 0 ? 'In Stock' : 'Out of Stock'}</p>
                                                     </div>
                                                 </td>

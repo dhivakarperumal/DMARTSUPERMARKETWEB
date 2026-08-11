@@ -114,6 +114,12 @@ const OrderDetail = () => {
               <p style="margin:5px 0;"><strong>Phone:</strong> ${order.customer_phone || "N/A"}</p>
               <p style="margin:5px 0;"><strong>Address:</strong> ${order.street_address || ""}, ${order.city || ""}, ${order.state || ""}, ${order.zip_code || ""}</p>
               <p style="margin:5px 0;"><strong>Country:</strong> ${order.country || "India"}</p>
+              ${order.pickup_date || order.pickup_time || order.pickup_person_name || order.pickup_person_phone ? `
+                <p style="margin:5px 0;"><strong>Pickup Date:</strong> ${order.pickup_date || "N/A"}</p>
+                <p style="margin:5px 0;"><strong>Pickup Time:</strong> ${order.pickup_time || "N/A"}</p>
+                <p style="margin:5px 0;"><strong>Pickup Person:</strong> ${order.pickup_person_name || "N/A"}</p>
+                <p style="margin:5px 0;"><strong>Pickup Phone:</strong> ${order.pickup_person_phone || "N/A"}</p>
+              ` : ''}
             </div>
     
             <div style="flex:1; min-width:240px; font-size:14px;">
@@ -578,6 +584,17 @@ const OrderDetail = () => {
                                     </div>
                                 </div>
                             </div>
+                            {(order.pickup_date || order.pickup_time || order.pickup_person_name || order.pickup_person_phone) && (
+                                <div className="mt-4 p-6 bg-green-50 rounded-3xl border border-green-100">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500 mb-3">Pickup Details</p>
+                                    <div className="grid gap-3 text-sm text-slate-700">
+                                        {order.pickup_date && <div><span className="font-black">Date:</span> {new Date(order.pickup_date).toLocaleDateString()}</div>}
+                                        {order.pickup_time && <div><span className="font-black">Time:</span> {order.pickup_time}</div>}
+                                        {order.pickup_person_name && <div><span className="font-black">Person:</span> {order.pickup_person_name}</div>}
+                                        {order.pickup_person_phone && <div><span className="font-black">Phone:</span> {order.pickup_person_phone}</div>}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

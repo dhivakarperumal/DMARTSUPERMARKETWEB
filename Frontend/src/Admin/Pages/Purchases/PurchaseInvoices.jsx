@@ -119,6 +119,7 @@ const PurchaseInvoices = () => {
         mrp: product.mrp || product.price || 0,
         selling_price: product.price || 0,
         unit_price: product.purchase_price || product.price || 0,
+        unit: product.unit || product.default_unit || product.variants?.[0]?.unit || product.pricing_options?.[0]?.unit || 'Pcs',
       });
       if (emptyIdx !== -1) {
         updated[emptyIdx] = target;
@@ -149,6 +150,7 @@ const PurchaseInvoices = () => {
   };
 
   const selectProduct = (idx, product) => {
+    const resolvedUnit = product.unit || product.default_unit || product.variants?.[0]?.unit || product.pricing_options?.[0]?.unit || updated[idx]?.unit || 'Pcs';
     setItems(prev => {
       const updated = [...prev];
       updated[idx] = calcItem({
@@ -160,6 +162,7 @@ const PurchaseInvoices = () => {
         mrp: product.mrp || product.price || 0,
         selling_price: product.price || 0,
         unit_price: product.purchase_price || product.price || 0,
+        unit: resolvedUnit,
       });
       return updated;
     });
@@ -170,22 +173,57 @@ const PurchaseInvoices = () => {
   const searchProduct = (q, list) => {
     const v = (q || "").toLowerCase().trim();
     if (!v) return list;
-    // 1. Exact match (case-insensitive) on barcode / product_code / sku
-    const exact = list.filter(p =>
-      (p.barcode||"").toLowerCase() === v ||
-      (p.product_code||"").toLowerCase() === v ||
-      (p.sku||"").toLowerCase() === v
+
+    const normalize = (value) => String(value || "").toLowerCase();
+    const matches = [];
+    const seen = new Set();
+
+    const add = (product) => {
+      if (!seen.has(product.id)) {
+        seen.add(product.id);
+        matches.push(product);
+      }
+    };
+
+    const exactName = list.filter(p => normalize(p.title).length && normalize(p.title) === v || normalize(p.name).length && normalize(p.name) === v);
+    exactName.forEach(add);
+
+    const startsWithName = list.filter(p => {
+      const title = normalize(p.title);
+      const name = normalize(p.name);
+      return (title && title.startsWith(v) && title !== v) || (name && name.startsWith(v) && name !== v);
+    });
+    startsWithName.forEach(add);
+
+    const partialName = list.filter(p => {
+      const title = normalize(p.title);
+      const name = normalize(p.name);
+      return (title && title.includes(v) && !title.startsWith(v)) || (name && name.includes(v) && !name.startsWith(v));
+    });
+    partialName.forEach(add);
+
+    const exactCode = list.filter(p =>
+      normalize(p.barcode) === v || normalize(p.product_code) === v || normalize(p.sku) === v
     );
-    if (exact.length > 0) return exact;
-    // 2. Partial match on any field
-    return list.filter(p =>
-      (p.name||p.title||"").toLowerCase().includes(v) ||
-      (p.barcode||"").toLowerCase().includes(v) ||
-      (p.product_code||"").toLowerCase().includes(v) ||
-      (p.sku||"").toLowerCase().includes(v)
+    exactCode.forEach(add);
+
+    const startsWithCode = list.filter(p =>
+      (normalize(p.barcode).startsWith(v) && normalize(p.barcode) !== v) ||
+      (normalize(p.product_code).startsWith(v) && normalize(p.product_code) !== v) ||
+      (normalize(p.sku).startsWith(v) && normalize(p.sku) !== v)
+    );
+    startsWithCode.forEach(add);
+
+    const partialCode = list.filter(p =>
+      normalize(p.barcode).includes(v) || normalize(p.product_code).includes(v) || normalize(p.sku).includes(v)
+    );
+    partialCode.forEach(add);
+
+    return matches.length > 0 ? matches : list.filter(p =>
+      normalize(p.title).includes(v) || normalize(p.name).includes(v) || normalize(p.barcode).includes(v) || normalize(p.product_code).includes(v) || normalize(p.sku).includes(v)
     );
   };
-  const filteredProducts = searchProduct(productSearch, products).slice(0, 12);
+  const filteredProducts = (productSearch && productSearch.trim()) ? searchProduct(productSearch, products).slice(0, 12) : products.slice(0, 12);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -611,14 +649,12 @@ const PurchaseInvoices = () => {
                         <thead className="bg-gray-100 border-b border-gray-200 text-[10px] text-gray-500 uppercase font-black tracking-widest">
                           <tr>
                             <th className="p-3 w-52">Product</th>
-                            <th className="p-3 w-28">Batch/Lot</th>
                             <th className="p-3 w-20">Qty</th>
-                            <th className="p-3 w-20">Free</th>
+                            <th className="p-3 w-20">Unit</th>
                             <th className="p-3 w-28">Unit Price</th>
                             <th className="p-3 w-20">Disc%</th>
                             <th className="p-3 w-20">Tax%</th>
                             <th className="p-3 w-24">MRP</th>
-                            <th className="p-3 w-24">Sale Price</th>
                             <th className="p-3 w-28">Expiry</th>
                             <th className="p-3 w-28 text-right">Total</th>
                             <th className="p-3 w-10"></th>
@@ -658,13 +694,16 @@ const PurchaseInvoices = () => {
                                 )}
                               </td>
                               <td className="p-2">
-                                <input type="text" value={item.batch_number||""} onChange={e=>updateItem(idx,'batch_number',e.target.value)} placeholder="Batch" className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none" />
-                              </td>
-                              <td className="p-2">
                                 <input type="number" min="0" step="0.001" value={item.quantity} onChange={e=>updateItem(idx,'quantity',e.target.value)} className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-center outline-none" />
                               </td>
                               <td className="p-2">
-                                <input type="number" min="0" value={item.free_quantity||0} onChange={e=>updateItem(idx,'free_quantity',e.target.value)} className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-center outline-none" />
+                                <select value={item.unit||'pcs'} onChange={e=>updateItem(idx,'unit',e.target.value)} className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none">
+                                  <option value="pcs">pcs</option>
+                                  <option value="kg">kg</option>
+                                  <option value="g">g</option>
+                                  <option value="ml">ml</option>
+                                  <option value="L">L</option>
+                                </select>
                               </td>
                               <td className="p-2">
                                 <input type="number" min="0" step="0.01" value={item.unit_price} onChange={e=>updateItem(idx,'unit_price',e.target.value)} className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-right outline-none" />
@@ -677,9 +716,6 @@ const PurchaseInvoices = () => {
                               </td>
                               <td className="p-2">
                                 <input type="number" min="0" step="0.01" value={item.mrp||0} onChange={e=>updateItem(idx,'mrp',e.target.value)} className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-right outline-none" />
-                              </td>
-                              <td className="p-2">
-                                <input type="number" min="0" step="0.01" value={item.selling_price||0} onChange={e=>updateItem(idx,'selling_price',e.target.value)} className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-right outline-none" />
                               </td>
                               <td className="p-2">
                                 <input type="date" value={item.expiry_date||""} onChange={e=>updateItem(idx,'expiry_date',e.target.value)} className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none" />

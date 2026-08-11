@@ -59,6 +59,7 @@ const CreateOrder = React.lazy(() => import("./Admin/Pages/CreateOrder.jsx"));
 const Staffs = React.lazy(() => import("./Admin/Staff/Staffs.jsx"));
 const AddStaff = React.lazy(() => import("./Admin/Staff/AddStaff.jsx"));
 const ViewStaff = React.lazy(() => import("./Admin/Staff/ViewStaff.jsx"));
+const StaffIdCard = React.lazy(() => import("./Admin/Staff/StaffIdCard.jsx"));
 const VideoManagement = React.lazy(() => import("./Admin/Pages/VideoManagement.jsx"));
 const BannerManagement = React.lazy(() => import("./Admin/Pages/BannerManagement.jsx"));
 const ErrorPage = React.lazy(() => import("./Admin/Pages/ErrorPage.jsx"));
@@ -130,7 +131,7 @@ const router = createHashRouter([
       { path: "products/:id", element: <ProductDetail /> },
       // Orders
       { path: "orders/create", element: <CreateOrder /> },
-      { path: "orders/new", element: <Orders statusFilter="Order Placed" dateFilter="today" /> },
+      { path: "orders/new", element: <Orders statusFilter="All" dateFilter="today" /> },
       { path: "orders/all", element: <Orders statusFilter="All" /> },
       { path: "orders/delivery", element: <Orders statusFilter="Delivered" /> },
       { path: "orders/cancelled", element: <Orders statusFilter="Cancelled" /> },
@@ -142,6 +143,7 @@ const router = createHashRouter([
       { path: "staff", element: <Staffs /> },
       { path: "addstaff", element: <AddStaff /> },
       { path: "addstaff/:id", element: <AddStaff /> },
+      { path: "staff/idcard/:id", element: <StaffIdCard /> },
       { path: "viewstaff/:id", element: <ViewStaff /> },
       { path: "staff/attendance", element: <Attendance /> },
       { path: "staff/leave", element: <LeaveManagement /> },

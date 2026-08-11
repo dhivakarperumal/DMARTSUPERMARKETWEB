@@ -147,6 +147,35 @@ const AddEditStaff = () => {
 
   const [previewFile, setPreviewFile] = useState(null);
 
+  // Date helpers
+  const pad = (n) => String(n).padStart(2, "0");
+
+  const todayString = () => {
+    const t = new Date();
+    return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+  };
+
+  const maxDobString = () => {
+    const t = new Date();
+    t.setFullYear(t.getFullYear() - 18);
+    return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+  };
+
+  const toInputDate = (dateStr) => {
+    if (!dateStr) return "";
+    // If already in YYYY-MM-DD or ISO, try to parse
+    const iso = new Date(dateStr);
+    if (!isNaN(iso.getTime())) {
+      return `${iso.getFullYear()}-${pad(iso.getMonth() + 1)}-${pad(iso.getDate())}`;
+    }
+
+    // Try dd-mm-yyyy or dd/mm/yyyy
+    const m = dateStr.match(/^(\d{2})[-\/](\d{2})[-\/](\d{4})$/);
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+
+    return "";
+  };
+
   /* ---------------- LOAD STAFF (EDIT ONLY) ---------------- */
 
   useEffect(() => {
@@ -171,8 +200,8 @@ const AddEditStaff = () => {
           role: data.role || "",
           gender: data.gender || "",
           bloodGroup: data.blood_group || "",
-          dob: data.dob || "",
-          joiningDate: data.joining_date || "",
+          dob: toInputDate(data.dob || data.date_of_birth || ""),
+          joiningDate: toInputDate(data.joining_date || data.join_date || ""),
           qualification: data.qualification || "",
           experience: data.experience || "",
           shift: data.shift || "",
@@ -329,9 +358,19 @@ const AddEditStaff = () => {
     if (form.dob?.trim()) {
       const dobDate = new Date(form.dob);
       const today = new Date();
-      const age = today.getFullYear() - dobDate.getFullYear();
-      if (age < 18) {
+      // accurate age check
+      const minDob = new Date();
+      minDob.setFullYear(minDob.getFullYear() - 18);
+      if (dobDate > minDob) {
         newErrors.dob = "Staff must be at least 18 years old";
+      }
+    }
+
+    if (form.joiningDate?.trim()) {
+      const jDate = new Date(form.joiningDate);
+      const today = new Date();
+      if (jDate > today) {
+        newErrors.joiningDate = "Joining date cannot be in the future";
       }
     }
 
@@ -372,6 +411,26 @@ const AddEditStaff = () => {
       } = staffData;
 
       // Map frontend camelCase to backend snake_case
+      // If user accidentally left a data: URL for photo (preview-only) convert and upload it
+      const safeForm = { ...finalStaffData };
+      if (typeof safeForm.photo === 'string' && safeForm.photo.trim().startsWith('data:')) {
+        try {
+          // convert dataURL to Blob then File
+          const res = await fetch(safeForm.photo);
+          const blob = await res.blob();
+          const file = new File([blob], 'photo.jpg', { type: blob.type });
+          const urls = await compressAndUpload([file], 'staff', { maxSizeMB: 5, maxWidthOrHeight: 2000 });
+          if (urls.length > 0) {
+            safeForm.photo = urls[0];
+          } else {
+            safeForm.photo = null;
+          }
+        } catch (err) {
+          console.error('Photo upload from data URL failed:', err);
+          safeForm.photo = null;
+        }
+      }
+
       const payload = {
         ...finalStaffData,
         blood_group: finalStaffData.bloodGroup,
@@ -381,7 +440,7 @@ const AddEditStaff = () => {
         aadhar_doc: aadharDoc || null,
         id_doc: idDoc || null,
         certificate_doc: certificateDoc || null,
-        photo: photo || null,
+        photo: safeForm.photo || photo || null,
         created_by: user?.user_id || user?.id || undefined,
         updated_by: user?.user_id || user?.id || undefined,
         // include password if creating new user; backend may handle auth creation
@@ -392,11 +451,18 @@ const AddEditStaff = () => {
         if (isEdit) {
           await api.put(`/staff/${id}`, payload);
           toast.success('Staff updated successfully');
+          setTimeout(() => navigate('/admin/staff'), 800);
         } else {
-          await api.post('/staff', payload);
+          const res = await api.post('/staff', payload);
           toast.success('Staff added successfully');
+          const newId = res?.data?.employeeId || res?.data?.id || null;
+          if (newId) {
+            // Navigate to the generated ID card view for printing
+            setTimeout(() => navigate(`/admin/staff/idcard/${newId}`), 600);
+          } else {
+            setTimeout(() => navigate('/admin/staff'), 800);
+          }
         }
-        setTimeout(() => navigate('/admin/staff'), 800);
       } catch (err) {
         console.error(err);
         throw err;
@@ -802,15 +868,16 @@ const AddEditStaff = () => {
                   icon={<Calendar size={16} />}
                 >
 
-                  <input
-                    type="date"
-                    name="dob"
-                    value={form.dob}
-                    onChange={handleChange}
-                    
-                    className={`${inputClass} ${errors.dob ? "border-red-500" : ""
-                      }`}
-                  />
+                    <input
+                      type="date"
+                      name="dob"
+                      value={form.dob}
+                      onChange={handleChange}
+                      max={maxDobString()}
+                      min="1900-01-01"
+                      className={`${inputClass} ${errors.dob ? "border-red-500" : ""
+                        }`}
+                    />
 
                 </InputBox>
 
@@ -828,7 +895,7 @@ const AddEditStaff = () => {
                     name="joiningDate"
                     value={form.joiningDate}
                     onChange={handleChange}
-                    
+                    max={todayString()}
                     className={`${inputClass} ${errors.joiningDate ? "border-red-500" : ""
                       }`}
                   />

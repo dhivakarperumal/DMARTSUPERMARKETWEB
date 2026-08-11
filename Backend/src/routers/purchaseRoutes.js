@@ -22,6 +22,7 @@ router.put('/orders/:id', c.updatePurchaseOrder);
 router.get('/export/excel', c.exportPurchasesExcel);
 router.get('/', c.getAllPurchases);
 router.post('/', c.createPurchase);
+router.put('/:id', c.updatePurchase);
 router.get('/:id/detail', c.getPurchaseById);
 
 // Payments

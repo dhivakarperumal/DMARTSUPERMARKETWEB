@@ -219,6 +219,11 @@ export function getFileUrl(rawPath, options = {}) {
   // Windows path
   path = path.replace(/\\/g, "/");
 
+  // Normalize malformed full URLs like https:/example.com or https:\example.com
+  if (/^https?:\/[^/]/i.test(path)) {
+    path = path.replace(/^(https?:)\/+/, "$1//");
+  }
+
   // If https:// appears inside a malformed relative string, extract the real URL
   const embeddedHttpIndex = path.search(/https?:\/\//i);
   if (embeddedHttpIndex > 0) {
@@ -234,8 +239,6 @@ export function getFileUrl(rawPath, options = {}) {
   // Normalize duplicate upload segments
   path = path.replace(/(?:^|\/)api\/uploads\/uploads\//gi, "$1api/uploads/");
   path = path.replace(/(?:^|\/)uploads\/uploads\//gi, "$1uploads/");
-
-  const hadLeadingSlash = rawPath.startsWith("/");
 
   // Remove leading slash
   path = path.replace(/^\/+/, "");

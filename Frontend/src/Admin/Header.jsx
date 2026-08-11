@@ -132,9 +132,12 @@ const Header = ({ onMenuClick }) => {
       const response = await api.get("/orders");
       const data = response.data || [];
 
-      // Filter for all pending/new orders
+      // Filter for all active order statuses that still need attention
       const pendingOrders = Array.isArray(data)
-        ? data.filter(o => o.status?.trim() === "Order Placed")
+        ? data.filter(o => {
+            const status = (o.status || "").trim();
+            return ["Order Placed", "Packing", "Ready to Deliver", "Shipping", "Out for Delivery"].includes(status);
+          })
         : [];
 
       // Get today's date parts in local time (handles M/D/YYYY and ISO formats)

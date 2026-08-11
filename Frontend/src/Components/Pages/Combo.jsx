@@ -270,10 +270,10 @@ const Combo = () => {
                       {/* Pricing */}
                       <div className="mt-5 flex items-center gap-3">
                         <span className="text-2xl font-bold text-[#0e6827]">
-                          ₹{price.toFixed(2)}
+                          ₹{Number(price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                         {mrp > price && (
-                          <span className="line-through text-gray-400 text-sm">₹{mrp.toFixed(2)}</span>
+                          <span className="line-through text-gray-400 text-sm">₹{Number(mrp).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         )}
                       </div>
                       {savings > 0 && (

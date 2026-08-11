@@ -314,11 +314,11 @@ const AllProducts = () => {
                                     <div className="mt-3 flex items-center justify-between">
                                         <div>
                                             <p className="text-lg font-black text-slate-800 leading-none">
-                                                ₹{parseFloat(product.offer_price || product.price || 0).toLocaleString()}
+                                                ₹{Number(product.offer_price || product.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </p>
                                             {product.mrp && (
                                                 <p className="text-xs text-gray-300 line-through font-medium">
-                                                    ₹{parseFloat(product.mrp).toLocaleString()}
+                                                    ₹{Number(product.mrp).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 </p>
                                             )}
                                         </div>

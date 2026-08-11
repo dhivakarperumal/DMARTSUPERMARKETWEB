@@ -35,6 +35,16 @@ const logoImage = "/images/logo.png";
 /* ================= NAV ITEMS ================= */
 const navItems = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  {
+    label: "Orders",
+    icon: ShoppingCart,
+    children: [
+      { path: "/admin/orders/new", label: "New Orders", icon: List },
+      { path: "/admin/orders/all", label: "All Orders", icon: Archive },
+      { path: "/admin/orders/delivery", label: "Delivery Orders", icon: Truck },
+      { path: "/admin/orders/cancelled", label: "Cancelled Orders", icon: XCircle },
+    ],
+  },
 
   {
     label: "Products",
@@ -62,16 +72,7 @@ const navItems = [
     ],
   },
 
-  {
-    label: "Orders",
-    icon: ShoppingCart,
-    children: [
-      { path: "/admin/orders/new", label: "New Orders", icon: List },
-      { path: "/admin/orders/all", label: "All Orders", icon: Archive },
-      { path: "/admin/orders/delivery", label: "Delivery Orders", icon: Truck },
-      { path: "/admin/orders/cancelled", label: "Cancelled Orders", icon: XCircle },
-    ],
-  },
+  
 
   { path: "/admin/users/all", label: "Customers", icon: Users },
 

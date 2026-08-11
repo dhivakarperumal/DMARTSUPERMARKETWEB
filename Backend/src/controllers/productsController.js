@@ -386,19 +386,24 @@ const updateProduct = async (req, res) => {
       const updated_by = req.headers['x-user-id'] || null;
       const incomingImages = data.product_images !== undefined ? data.product_images : existingRows[0].product_images;
       const normalizedIncomingImages = normalizeProductImages(incomingImages);
-      const fallbackImages = normalizedIncomingImages.length > 0
+      let fallbackImages = normalizedIncomingImages.length > 0
         ? normalizedIncomingImages
         : normalizeProductImages(existingRows[0].thumbnail_image || existingRows[0].product_images);
 
-      await connection.execute(
-        `UPDATE products SET 
-          name = ?, product_code = ?, barcode = ?, barcode_image = ?, category = ?, category_id = ?, subcategory = ?, brand = ?, description = ?,
-          mrp = ?, selling_price = ?, offer = ?, offer_price = ?, stock_quantity = ?, pricing_options = ?, total_stock = ?,
-          expiry_date = ?, manufacturing_date = ?, country_of_origin = ?, supplier = ?, product_images = ?,
-          status = ?, featured_product = ?, best_seller = ?, todays_deal = ?, delivery_time = ?, return_available = ?, rating = ?, review_count = ?, combo_items = ?, type = ?,
-          updated_by = ?, updated_at = NOW() 
-        WHERE id = ?`,
-        [
+      // Strip out embedded data: URLs (base64 blobs) to avoid storing huge payloads
+      if (Array.isArray(fallbackImages)) {
+        fallbackImages = fallbackImages
+          .map((it) => (typeof it === 'string' && it.trim().startsWith('data:') ? null : it))
+          .filter(Boolean);
+      }
+
+      // Ensure thumbnail_image is not a data URL
+      if (typeof data.thumbnail_image === 'string' && data.thumbnail_image.trim().startsWith('data:')) {
+        data.thumbnail_image = '';
+      }
+
+      try {
+        const updateParams = [
           data.name,
           data.product_code || "",
           data.barcode || "",
@@ -433,8 +438,27 @@ const updateProduct = async (req, res) => {
           data.type !== undefined ? data.type : existingRows[0].type,
           updated_by,
           id
-        ]
-      );
+        ];
+
+        await connection.execute(
+          `UPDATE products SET 
+            name = ?, product_code = ?, barcode = ?, barcode_image = ?, category = ?, category_id = ?, subcategory = ?, brand = ?, description = ?,
+            mrp = ?, selling_price = ?, offer = ?, offer_price = ?, stock_quantity = ?, pricing_options = ?, total_stock = ?,
+            expiry_date = ?, manufacturing_date = ?, country_of_origin = ?, supplier = ?, product_images = ?, thumbnail_image = ?,
+            status = ?, featured_product = ?, best_seller = ?, todays_deal = ?, delivery_time = ?, return_available = ?, rating = ?, review_count = ?, combo_items = ?, type = ?,
+            updated_by = ?, updated_at = NOW() 
+          WHERE id = ?`,
+          updateParams
+        );
+      } catch (sqlErr) {
+        console.error("Product update query failed. Params:", {
+          id,
+          finalCategoryId,
+          imagesCount: Array.isArray(fallbackImages) ? fallbackImages.length : 0,
+        });
+        console.error("SQL Error:", sqlErr && sqlErr.message ? sqlErr.message : sqlErr);
+        throw sqlErr;
+      }
 
       return res.status(200).json({
         success: true,
@@ -444,7 +468,7 @@ const updateProduct = async (req, res) => {
       connection.release();
     }
   } catch (error) {
-    console.error("Update product failed:", error);
+    console.error("Update product failed:", error && error.stack ? error.stack : error);
     if (error.code === 'ER_NET_PACKET_TOO_LARGE' || error.sqlMessage?.includes('max_allowed_packet')) {
       return res.status(413).json({
         success: false,

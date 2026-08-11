@@ -99,9 +99,15 @@ const StockDetails = () => {
         fetchProducts();
     };
 
+    const formatWholeStock = (value) => {
+        const numeric = Number(value ?? 0);
+        if (!Number.isFinite(numeric)) return "0";
+        return Math.floor(Math.abs(numeric)).toLocaleString('en-IN');
+    };
+
     const getStockLevel = (product) => {
         const stock = product.total_stock ?? product.stock ?? 0;
-        return stock;
+        return Number(stock) || 0;
     };
 
     const getStatusStyle = (status) => {
@@ -372,7 +378,7 @@ const StockDetails = () => {
                                         </div>
                                         <div className="flex items-center justify-between pt-4 border-t border-gray-50">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-black uppercase tracking-tighter text-slate-500">Stock: {stock}</span>
+                                                <span className="text-[10px] font-black uppercase tracking-tighter text-slate-500">Stock: {formatWholeStock(stock)}</span>
                                             </div>
                                             <button onClick={() => openUpdateModal(item)} className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">
                                                 Quick Update
@@ -442,7 +448,7 @@ const StockDetails = () => {
                                                     <div className="flex flex-col md:block w-full gap-3 md:gap-0">
                                                         <span className="md:hidden text-[11px] font-black text-gray-400 uppercase tracking-widest">Current Stock</span>
                                                         <div className="flex items-center gap-4 justify-start">
-                                                            <span className="font-black text-slate-700 w-8 text-left">{stock}</span>
+                                                            <span className="font-black text-slate-700 w-8 text-left">{formatWholeStock(stock)}</span>
                                                             <div className="flex-1 w-[120px] md:w-auto md:max-w-[100px] h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                                                 <div
                                                                     className={`h-full transition-all duration-1000 ${stock <= 0 ? 'bg-red-500' : stock < minStock ? 'bg-amber-400' : 'bg-emerald-500'}`}

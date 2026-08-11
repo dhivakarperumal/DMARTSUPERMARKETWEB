@@ -66,7 +66,7 @@ function formatDate(dateStr) {
 }
 
 function formatAmount(amount) {
-  return `₹${parseFloat(amount || 0).toFixed(2)}`;
+  return `₹${Number(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function getOrderStatusColor(status) {
@@ -652,8 +652,8 @@ const MessageBubble = ({ msg, onProductClick, onOrderClick, onActionClick }) => 
                       {product.brand && <div className="product-brand-chat">{product.brand}</div>}
                       <div className="product-category-chat">{product.category}</div>
                       <div className="product-price-row">
-                        <span className="product-price-chat">₹{parseFloat(price || 0).toFixed(2)}</span>
-                        {originalPrice && <span className="product-original-chat">₹{parseFloat(originalPrice).toFixed(2)}</span>}
+                        <span className="product-price-chat">₹{Number(price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        {originalPrice && <span className="product-original-chat">₹{Number(originalPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                       </div>
                       {product.stock_quantity !== undefined && (
                         <div className={`stock-status ${product.stock_quantity > 0 ? "in-stock" : "out-stock"}`}>
