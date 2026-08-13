@@ -6,6 +6,23 @@ body {
   font-family: 'Merriweather', serif;
 }
 
+button,
+[type="button"],
+[type="submit"],
+[type="reset"],
+[role="button"],
+.btn,
+.icon-button {
+  cursor: pointer;
+}
+
+button:disabled,
+[type="button"]:disabled,
+[type="submit"]:disabled,
+[type="reset"]:disabled {
+  cursor: not-allowed;
+}
+
 /* Theme variables */
 @theme {
 

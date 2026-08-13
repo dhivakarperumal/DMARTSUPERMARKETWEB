@@ -205,7 +205,7 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
           {!collapsed && (
             <div className="leading-tight overflow-hidden flex flex-col justify-center">
               <h1 className="text-lg font-black text-white leading-none">
-                <span className="text-[#59c33f]">PRIYAM</span>
+                <span className="text-[#59c33f]">D-MART</span>
               </h1>
               <p className="text-[8px] text-gray-300 font-bold tracking-[0.2em] uppercase mt-1">Super Market</p>
             </div>

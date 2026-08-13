@@ -62,6 +62,12 @@ api.interceptors.request.use(
 
 export default api;
 
+export const formatPrice = (value) =>
+  Number(value || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
 // ======================================================
 // NORMALIZE IMAGE LIST
 // ======================================================
@@ -129,8 +135,8 @@ export function normalizeImageList(value) {
 // ======================================================
 const buildResolvedUrl = (
   url,
-  cacheBust = true,
-  cacheKey = Date.now()
+  cacheBust = false,
+  cacheKey = "stable"
 ) => {
   if (!url) return null;
 
@@ -145,13 +151,14 @@ const buildResolvedUrl = (
   try {
     const u = new URL(url);
 
-    u.searchParams.set("v", cacheKey);
+    u.searchParams.set("v", String(cacheKey ?? Date.now()));
 
     return u.toString();
   } catch {
     const separator = url.includes("?") ? "&" : "?";
+    const key = cacheKey ?? Date.now();
 
-    return `${url}${separator}v=${cacheKey}`;
+    return `${url}${separator}v=${key}`;
   }
 };
 
@@ -160,8 +167,8 @@ const buildResolvedUrl = (
 // ======================================================
 export function getFileUrl(rawPath, options = {}) {
   const {
-    cacheBust = true,
-    cacheKey = Date.now(),
+    cacheBust = false,
+    cacheKey = "stable",
   } = options;
 
   if (!rawPath) return null;

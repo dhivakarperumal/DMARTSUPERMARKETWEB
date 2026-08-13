@@ -583,7 +583,7 @@ const Settings = () => {
 
               <Input
                 label="Store Name"
-                placeholder="Priyam Super Market"
+                placeholder="D-Mart Super Market"
                 value={receiptSettings.storeName}
                 onChange={(e) => updateReceiptSetting("storeName", e.target.value)}
               />
@@ -604,7 +604,7 @@ const Settings = () => {
 
               <Input
                 label="Email"
-                placeholder="contact@priyam.com"
+                placeholder="contact@dmart.com"
                 value={receiptSettings.email}
                 onChange={(e) => updateReceiptSetting("email", e.target.value)}
               />
@@ -871,7 +871,7 @@ const Settings = () => {
 
             <Input
               label="Store Name"
-              placeholder="Priyam Super Market"
+              placeholder="D-Mart Super Market"
               value={storeSettings.storeName}
               onChange={(e) => updateStoreSetting('storeName', e.target.value)}
             />
@@ -898,7 +898,7 @@ const Settings = () => {
 
             <Input
               label="Email"
-              placeholder="admin@priyam.com"
+              placeholder="admin@dmart.com"
               value={storeSettings.email}
               onChange={(e) => updateStoreSetting('email', e.target.value)}
             />

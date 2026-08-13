@@ -75,7 +75,7 @@ const Footer = () => {
               <div>
 
                 <h2 className="text-2xl font-bold tracking-wide">
-                  PRIYAM SUPERMARKET
+                  D-MART SUPERMARKET
                 </h2>
 
                 <p className="text-xs text-green-200 uppercase">
@@ -310,7 +310,7 @@ const Footer = () => {
 
               <Mail size={18} />
 
-              <span>support@priyam.com</span>
+              <span>support@dmart.com</span>
 
             </div>
 
@@ -337,7 +337,7 @@ const Footer = () => {
           <div className="py-5 flex flex-col lg:flex-row items-center justify-between gap-5">
 
             <p className="text-sm text-green-100">
-              © {new Date().getFullYear()} Priyam Supermarket. All Rights Reserved.
+              © {new Date().getFullYear()} D-Mart Supermarket. All Rights Reserved.
             </p>
 
             <div className="flex items-center gap-5">

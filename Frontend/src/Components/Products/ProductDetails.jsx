@@ -6,7 +6,7 @@ import { Navigation, Autoplay, Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
-import api, { getFileUrl } from "../../api";
+import api, { getFileUrl, formatPrice } from "../../api";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
 import {
   FiHeart,
@@ -547,9 +547,9 @@ const ProductDetails = () => {
 
             <div className="mt-6 rounded-[1.5rem] border border-green-100 bg-gradient-to-r from-green-50 to-white p-5 shadow-sm">
               <div className="flex flex-wrap items-end gap-3">
-                <span className="text-3xl font-bold text-green-700">₹{selectedVariant?.sellingPrice || selectedVariant?.selling_price || product.offer_price}</span>
+                <span className="text-3xl font-bold text-green-700">₹{formatPrice(selectedVariant?.sellingPrice || selectedVariant?.selling_price || product.offer_price)}</span>
                 {(selectedVariant?.mrp || product.mrp) && (
-                  <span className="text-lg text-gray-400 line-through">₹{selectedVariant?.mrp || product.mrp}</span>
+                  <span className="text-lg text-gray-400 line-through">₹{formatPrice(selectedVariant?.mrp || product.mrp)}</span>
                 )}
                 {(selectedVariant?.offer || product.offer) && (
                   <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
@@ -595,23 +595,34 @@ const ProductDetails = () => {
               </p> */}
 
               <div className="mt-5">
-                <div className="mb-2 flex items-center justify-between">
+                <div className="mb-3 flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-500">Quantity</p>
                   <p className={`text-sm font-semibold ${isOutOfStock ? "text-red-500" : "text-green-600"}`}>
                     {isOutOfStock ? "Out of Stock" : `Available: ${formatStockValue(availableStock)} ${selectedVariant?.unit || product?.unit || "units"}`}
                   </p>
                 </div>
-                <div className="flex w-fit items-center overflow-hidden rounded-full border border-gray-200 bg-gray-50">
-                  <button onClick={decreaseQty} className="px-4 py-2 text-lg font-bold text-gray-700 hover:bg-gray-100">
-                    -
-                  </button>
-                  <span className="border-x border-gray-200 px-5 py-2 font-semibold text-gray-700">
-                    {quantity}
-                  </span>
-                  <button onClick={increaseQty} className="px-4 py-2 text-lg font-bold text-gray-700 hover:bg-gray-100">
-                    +
-                  </button>
-                </div>
+
+                {!isOutOfStock && (
+                  <div className="flex w-fit items-center overflow-hidden rounded-xl border border-[#0e6827] bg-[#f2fbf4] shadow-sm">
+                    <button
+                      onClick={decreaseQty}
+                      className="h-11 w-11 text-2xl font-bold text-[#0e6827] bg-white border-r border-[#0e6827] transition hover:bg-green-50"
+                    >
+                      -
+                    </button>
+
+                    <div className="flex h-11 w-12 items-center justify-center text-lg font-bold text-[#0e6827] bg-[#f2fbf4] select-none">
+                      {quantity}
+                    </div>
+
+                    <button
+                      onClick={increaseQty}
+                      className="h-11 w-11 text-2xl font-bold text-white bg-[#0e6827] transition hover:bg-[#0b511d]"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -663,7 +674,7 @@ const ProductDetails = () => {
                 This variant is currently out of stock.
               </div>
             ) : (
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-8 flex items-stretch gap-3">
                 <button
                   onClick={() => {
                     const isCombo = String(product?.type) === "1";
@@ -674,22 +685,24 @@ const ProductDetails = () => {
                     }
                     addToCart(product, selectedVariant, selectedSize, quantity);
                   }}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 font-semibold text-white shadow-lg shadow-green-100 transition hover:scale-[1.01]"
+                  className="flex h-14 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0e6827] to-[#168637] px-6 text-base font-semibold text-white shadow-lg transition hover:scale-[1.01]"
                 >
                   <FiShoppingCart size={18} />
-                  Add to Cart
+                  <span>Add to Cart</span>
                 </button>
+
                 <button
                   onClick={handleBuyNow}
-                  className="flex flex-1 items-center justify-center rounded-full bg-gray-900 px-6 py-3 font-semibold text-white transition hover:bg-black"
+                  className="flex h-14 flex-1 items-center justify-center rounded-xl bg-[#111827] px-6 text-base font-semibold text-white shadow-lg transition hover:bg-black"
                 >
                   Buy Now
                 </button>
+
                 <button
                   onClick={() => toggleWishlist(product, selectedVariant)}
-                  className={`flex items-center justify-center rounded-full border px-5 py-3 font-semibold transition ${wishlist.some((w) => w.product_id === product.id) ? "border-rose-300 bg-rose-50 text-rose-500" : "border-gray-200 text-gray-600 hover:border-rose-300 hover:text-rose-500"}`}
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 transition ${wishlist.some((w) => w.product_id === product.id) ? "border-red-400 bg-red-50 text-red-500" : "border-green-200 hover:border-green-700 hover:bg-green-50 text-gray-600"}`}
                 >
-                  <FiHeart size={18} className={wishlist.some((w) => w.product_id === product.id) ? "fill-current" : ""} />
+                  <FiHeart size={22} className={wishlist.some((w) => w.product_id === product.id) ? "fill-current" : ""} />
                 </button>
               </div>
             )}

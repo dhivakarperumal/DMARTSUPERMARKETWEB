@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import api from "../../api";
 
 const COMPANY = {
-  name: "Priyam Super Market",
+  name: "D-Mart Super Market",
   // put your logo in Frontend/public/images/logo.png and it'll be served at /images/logo.png
   logoUrl: "/images/logo.png",
   accent: "#cc2222",

@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
 import { StoreContext } from "../../PrivateRouter/StoreContext";
-import { getFileUrl, getProductImageUrl } from "../../api";
+import { getFileUrl, getProductImageUrl, formatPrice } from "../../api";
 import { FiPlus, FiHeart, FiShare2 } from "react-icons/fi";
 import { BsQrCode } from "react-icons/bs";
 import { useNavigate } from "react-router-dom";
@@ -172,11 +172,11 @@ const ProductCard = ({ product }) => {
             {/* Price */}
             <div className="flex items-center gap-2 mb-3">
               <span className="font-bold text-gray-900 text-lg">
-                ₹{product?.offer_price || product?.price}
+                ₹{formatPrice(product?.offer_price || product?.price)}
               </span>
               {product?.mrp && (
                 <span className="text-gray-400 line-through text-xs">
-                  ₹{product?.mrp}
+                  ₹{formatPrice(product?.mrp)}
                 </span>
               )}
               {product?.offer && (

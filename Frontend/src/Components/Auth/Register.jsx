@@ -70,7 +70,7 @@ function Register() {
                   <Leaf className="w-4 h-4 absolute -top-1 -left-1 fill-current" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-slate-800 leading-tight">Priyam</h1>
+                  <h1 className="text-xl font-bold text-slate-800 leading-tight">D-Mart</h1>
                   <p className="text-[10px] font-bold text-slate-500 tracking-[0.2em] uppercase">Supermarket</p>
                 </div>
               </div>
@@ -92,7 +92,7 @@ function Register() {
                 Create Account <Leaf className="w-6 h-6 text-[#3a8b28] fill-current opacity-80" />
               </h2>
               <p className="text-slate-500 text-sm">
-                Join <span className="font-bold text-[#3a8b28]">Priyam Supermarket</span> and get the best shopping experience
+                Join <span className="font-bold text-[#3a8b28]">D-Mart Supermarket</span> and get the best shopping experience
               </p>
             </div>
 
@@ -232,7 +232,7 @@ function Register() {
                 <ShoppingCart className="w-12 h-12" strokeWidth={2} />
                 <Leaf className="w-6 h-6 absolute -top-1.5 -left-1.5 fill-current" />
               </div>
-              <h2 className="text-2xl font-bold text-white leading-tight">Priyam</h2>
+              <h2 className="text-2xl font-bold text-white leading-tight">D-Mart</h2>
               <p className="text-xs font-bold text-white/90 tracking-[0.2em] uppercase">Supermarket</p>
             </div>
           </div>

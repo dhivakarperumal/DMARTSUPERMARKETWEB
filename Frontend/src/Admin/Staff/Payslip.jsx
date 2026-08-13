@@ -110,7 +110,7 @@ const Payslip = () => {
                 <span className="text-2xl font-black text-[#59c33f]">P</span>
               </div>
               <div>
-                <h1 className="text-xl font-black text-white tracking-tight">PRIYAM SUPER MARKET</h1>
+                <h1 className="text-xl font-black text-white tracking-tight">D-MART SUPER MARKET</h1>
                 <p className="text-xs text-green-300 mt-0.5 font-medium">Employee Salary Slip</p>
               </div>
             </div>

@@ -116,6 +116,8 @@ const Checkout = () => {
         try {
           const parsed = JSON.parse(cached);
           setStoreSettings(parsed);
+          console.log("Store settings loaded from cache:", parsed);
+          return parsed; // Return cached data
         } catch (e) {
           console.warn('Failed to parse cached store settings', e);
         }
@@ -125,15 +127,18 @@ const Checkout = () => {
       if (response.data?.success && response.data?.data) {
         if (Object.keys(response.data.data).length > 0) {
           setStoreSettings(response.data.data);
+          console.log("Store settings loaded from API:", response.data.data);
           try {
             localStorage.setItem('store_settings', JSON.stringify(response.data.data));
           } catch (e) {
             console.warn('Unable to persist store settings to localStorage', e);
           }
+          return response.data.data; // Return API data
         }
       }
     } catch (error) {
       console.error("Error fetching store settings:", error);
+      return null; // Return null on error
     }
   };
 
@@ -458,13 +463,86 @@ const Checkout = () => {
     return earthRadiusKm * c;
   };
 
-  const detectDistanceToShop = () => {
+  const populateLocationAddress = (reverseData, userLat, userLng) => {
+    const address = reverseData?.address || {};
+    const displayName = reverseData?.display_name || "";
+    const displayParts = displayName
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    const generatedStreet = [
+      address.house_number,
+      address.road,
+      address.suburb,
+      address.neighbourhood,
+      address.village,
+      address.hamlet,
+    ].filter(Boolean).join(" ") || displayParts.slice(0, 3).join(", ");
+
+    const cityName =
+      address.city ||
+      address.town ||
+      address.village ||
+      address.municipality ||
+      address.county ||
+      displayParts[displayParts.length - 4] ||
+      "";
+
+    const districtName =
+      address.district ||
+      address.county ||
+      address.state_district ||
+      displayParts[displayParts.length - 3] ||
+      "";
+
+    const stateName = address.state || displayParts[displayParts.length - 2] || "";
+    const countryName = address.country || "India";
+    const zipCode = address.postcode || "";
+
+    const fullAddress = displayName || [
+      generatedStreet,
+      cityName,
+      districtName,
+      stateName,
+      countryName,
+    ].filter(Boolean).join(", ");
+
+    setLocationData({
+      address: fullAddress,
+      latitude: userLat,
+      longitude: userLng,
+    });
+
+    setForm((prev) => ({
+      ...prev,
+      street_address: generatedStreet || prev.street_address,
+      city: cityName || prev.city,
+      district: districtName || prev.district,
+      state: stateName || prev.state,
+      country: countryName || prev.country || "India",
+      zip_code: zipCode || prev.zip_code,
+    }));
+  };
+
+  const detectDistanceToShop = async () => {
     if (!navigator.geolocation) {
       setDistanceInfo({ loading: false, error: "Location access is not supported by this browser.", distanceKm: null });
       return;
     }
 
     setDistanceInfo((prev) => ({ ...prev, loading: true, error: "" }));
+
+    // Ensure store settings are loaded before proceeding
+    let currentStoreSettings = storeSettings;
+    if (!currentStoreSettings || !currentStoreSettings.latitude || !currentStoreSettings.longitude) {
+      console.log("Store settings not available, fetching...");
+      currentStoreSettings = await fetchStoreSettings();
+      if (!currentStoreSettings || !currentStoreSettings.latitude || !currentStoreSettings.longitude) {
+        setDistanceInfo({ loading: false, error: 'Store location is not configured by admin.', distanceKm: null });
+        return;
+      }
+    }
 
     // Fetch user's current position and compute distance to shop using admin-configured storeSettings.
     navigator.permissions && navigator.permissions.query
@@ -480,14 +558,8 @@ const Checkout = () => {
               const userLat = position.coords.latitude;
               const userLng = position.coords.longitude;
 
-              // Use shop coordinates only from storeSettings (do not overwrite or fetch them here)
-              if (!storeSettings || !storeSettings.latitude || !storeSettings.longitude) {
-                setDistanceInfo({ loading: false, error: 'Store location is not configured by admin.', distanceKm: null });
-                return;
-              }
-
-              const shopLat = parseFloat(storeSettings.latitude);
-              const shopLng = parseFloat(storeSettings.longitude);
+              const shopLat = parseFloat(currentStoreSettings.latitude);
+              const shopLng = parseFloat(currentStoreSettings.longitude);
               const distance = calculateDistanceKm(userLat, userLng, shopLat, shopLng);
 
               // attempt to refresh delivery charges
@@ -504,48 +576,7 @@ const Checkout = () => {
 
                 if (reverseResponse.ok) {
                   const reverseData = await reverseResponse.json();
-                  const address = reverseData?.address || {};
-
-                  const fullAddress =
-                    reverseData.display_name ||
-                    [
-                      address.house_number,
-                      address.road,
-                      address.suburb,
-                      address.city || address.town || address.village,
-                      address.state,
-                      address.postcode,
-                      address.country,
-                    ]
-                      .filter(Boolean)
-                      .join(", ");
-
-                  setLocationData({
-                    address: fullAddress,
-                    latitude: userLat,
-                    longitude: userLng,
-                  });
-
-                  setForm((prev) => ({
-                    ...prev,
-                    street_address:
-                      [address.house_number, address.road, address.suburb]
-                        .filter(Boolean)
-                        .join(" ") || prev.street_address,
-                    city:
-                      address.city ||
-                      address.town ||
-                      address.village ||
-                      prev.city,
-                    district:
-                      address.district ||
-                      address.county ||
-                      address.state_district ||
-                      prev.district,
-                    state: address.state || prev.state,
-                    country: address.country || "India",
-                    zip_code: address.postcode || prev.zip_code,
-                  }));
+                  populateLocationAddress(reverseData, userLat, userLng);
                 }
               } catch (err) { console.warn('Reverse geocode failed', err); }
 
@@ -576,12 +607,22 @@ const Checkout = () => {
               longitude: userLng,
               address: "",
             });
-            if (!storeSettings || !storeSettings.latitude || !storeSettings.longitude) {
-              setDistanceInfo({ loading: false, error: 'Store location is not configured by admin.', distanceKm: null });
-              return;
+
+            try {
+              const reverseResponse = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${userLat}&lon=${userLng}&addressdetails=1`
+              );
+
+              if (reverseResponse.ok) {
+                const reverseData = await reverseResponse.json();
+                populateLocationAddress(reverseData, userLat, userLng);
+              }
+            } catch (err) {
+              console.warn('Reverse geocode failed in fallback path', err);
             }
-            const shopLat = parseFloat(storeSettings.latitude);
-            const shopLng = parseFloat(storeSettings.longitude);
+
+            const shopLat = parseFloat(currentStoreSettings.latitude);
+            const shopLng = parseFloat(currentStoreSettings.longitude);
             const distance = calculateDistanceKm(userLat, userLng, shopLat, shopLng);
             setDistanceInfo({ loading: false, error: '', distanceKm: Number(distance.toFixed(1)) });
           } catch (err) {
@@ -890,7 +931,7 @@ order_type: deliveryMethod === "pickup" ? "Pickup" : "Delivery",
         key: paymentSettings.razorpayKey,
         amount: floorAmount(total) * 100,
         currency: "INR",
-        name: "Priyam Supermarket",
+        name: "D-Mart Supermarket",
         description: "Order Payment",
         handler: async function (response) {
           console.log("Payment Success:", response);

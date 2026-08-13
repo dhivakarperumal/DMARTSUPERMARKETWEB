@@ -188,7 +188,7 @@ const Reviews = () => {
                 <MessageSquare className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.3em]">Priyam Super Market</p>
+                <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.3em]">D-Mart Super Market</p>
                 <h1 className="text-2xl font-black text-white leading-none">Customer Reviews</h1>
               </div>
             </div>

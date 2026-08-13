@@ -330,7 +330,7 @@ const Header = ({ onMenuClick }) => {
               {getPageTitle()}
             </h1>
             <p className="hidden sm:block text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em] mt-1">
-              PRIYAM SUPER MARKET
+              D-MART SUPER MARKET
             </p>
           </div>
         </div>
